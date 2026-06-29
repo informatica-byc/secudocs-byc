@@ -445,7 +445,7 @@ const state = {
   search: "",
   demo: !FB_OK,          // modo demostración (sin Firebase configurado)
   demoStore: { users: [], records: [], counters: {} },
-  unsub: { records: null, dashboard: null } // listeners onSnapshot activos
+  unsub: { records: null, dashboard: null, users: null } // listeners onSnapshot activos
 };
 
 /* Cierra los listeners en tiempo real activos (al cambiar de vista) */
@@ -891,6 +891,13 @@ function subscribeCounts(onChange){
       snap.docs.forEach(d=>{ const f=d.data().formId; counts[f]=(counts[f]||0)+1; });
       onChange(counts);
     }, err=>{ console.warn("onSnapshot conteos:", err); });
+}
+function subscribeUsers(onChange){
+  if(state.demo) return null;
+  return db.collection(COL_USERS).orderBy("nombre")
+    .onSnapshot(snap=>{
+      onChange(snap.docs.map(d=>({id:d.id, ...d.data()})));
+    }, err=>{ console.warn("onSnapshot usuarios:", err); });
 }
 
 /* ======================================================================
@@ -1982,10 +1989,11 @@ function accentToRGB(a){
    ====================================================================== */
 async function renderUsers(){
   if(state.user.rol!=="admin"){ state.view="dashboard"; renderDashboard(); return; }
+  stopRealtime(); // cerrar listeners de otras vistas
   const main=$("#main");
   main.innerHTML=`
     <div class="page-head">
-      <h2>Gestión de usuarios</h2>
+      <h2>Gestión de usuarios ${state.demo?'':'<span class="live-badge" id="liveBadge" title="Actualización en tiempo real"><span class="live-dot"></span> En vivo</span>'}</h2>
       <p>Creá, editá y eliminá las cuentas de acceso. Los usuarios con rol <b>Seguridad</b> solo pueden crear y completar boletas; los <b>Administradores</b> tienen acceso total.</p>
     </div>
     <div class="toolbar">
@@ -1994,11 +2002,15 @@ async function renderUsers(){
     </div>
     <div id="userList"><div class="loader-wrap"><div class="spinner"></div><p>Cargando usuarios…</p></div></div>`;
   $("#newUser").onclick=()=>userEditor(null);
+
   let users=[];
-  try{ users=await dbListUsers(); }catch(e){ console.error(e); }
-  const paint=(q="")=>{
+  let query="";
+
+  const paint=()=>{
+    if(state.view!=="users") return;
     const list=$("#userList");
-    const f=users.filter(u=>!q || (u.nombre+" "+u.usuario).toLowerCase().includes(q));
+    if(!list) return;
+    const f=users.filter(u=>!query || (u.nombre+" "+u.usuario).toLowerCase().includes(query));
     if(f.length===0){ list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.users}</div><h3>Sin usuarios</h3></div>`; return; }
     list.innerHTML=`<div class="fade-list">`+f.map(u=>`
       <div class="user-card">
@@ -2013,10 +2025,11 @@ async function renderUsers(){
         </div>
       </div>`).join("")+`</div>`;
   };
-  paint();
-  $("#userSearch").addEventListener("input",e=>paint(e.target.value.toLowerCase()));
 
-  window._userEdit=id=>userEditor(users.find(u=>u.id===id), ()=>renderUsers());
+  $("#userSearch").addEventListener("input",e=>{ query=e.target.value.toLowerCase(); paint(); });
+
+  // edición/eliminación usan el array vivo "users"
+  window._userEdit=id=>userEditor(users.find(u=>u.id===id));
   window._userDel=id=>{
     const u=users.find(x=>x.id===id);
     const modal=el("div","modal-bg show");
@@ -2027,8 +2040,28 @@ async function renderUsers(){
     document.body.appendChild(modal);
     const close=()=>modal.remove();
     $("#udC").onclick=close; modal.addEventListener("mousedown",e=>{if(e.target===modal)close();});
-    $("#udO").onclick=async()=>{ try{ await dbDeleteUser(id); close(); toast("Usuario eliminado","ok"); renderUsers(); }catch(e){ toast("Error al eliminar","err"); } };
+    $("#udO").onclick=async()=>{
+      const b=$("#udO"); b.disabled=true; b.innerHTML='<span class="spinner sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.4)"></span> Eliminando…';
+      try{
+        await dbDeleteUser(id); close(); toast("Usuario eliminado","ok");
+        if(state.demo){ users=users.filter(x=>x.id!==id); paint(); }
+      }catch(e){ b.disabled=false; b.textContent="Eliminar"; toast("Error al eliminar","err"); }
+    };
   };
+
+  if(state.demo){
+    try{ users=await dbListUsers(); }catch(e){ console.error(e); }
+    paint();
+  } else {
+    let first=true;
+    state.unsub.users = subscribeUsers(arr=>{
+      users = arr;
+      paint();
+      if(!first) flashLiveDot();
+      first=false;
+    });
+    if(!state.unsub.users){ try{ users=await dbListUsers(); }catch(e){} paint(); }
+  }
 }
 
 function userEditor(user, onDone){
@@ -2088,7 +2121,8 @@ function userEditor(user, onDone){
         await dbUpdateUser(user.id,patch);
         toast("Usuario actualizado","ok");
       }
-      close(); onDone && onDone();
+      close();
+      if(state.demo) renderUsers(); else if(typeof onDone==="function") onDone();
     }catch(e){ console.error(e); btn.disabled=false; lbl.textContent=isNew?'Crear usuario':'Guardar'; toast("Error al guardar usuario","err"); }
   };
   $("#ueName").focus();
