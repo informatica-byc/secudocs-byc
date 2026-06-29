@@ -214,6 +214,8 @@ a{color:var(--emerald);text-decoration:none}
 .tbl tbody tr:hover{background:var(--surface-2)}
 .tbl tbody tr:last-child td{border-bottom:none}
 .consec{font-family:var(--display);font-weight:700;font-size:12.5px;color:var(--emerald-d);background:rgba(13,122,79,.08);padding:3px 8px;border-radius:7px;white-space:nowrap}
+.creator-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);padding:3px 9px 3px 4px;border-radius:20px;white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis}
+.creator-tag .ct-av{width:20px;height:20px;border-radius:50%;background:var(--grad-ice);color:#fff;display:inline-grid;place-items:center;font-size:9.5px;font-weight:700;flex-shrink:0}
 .row-actions{display:flex;gap:6px;justify-content:flex-end}
 .icon-btn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted);transition:.18s;border:1px solid transparent}
 .icon-btn:hover{background:var(--surface-2);color:var(--ink);border-color:var(--line)}
@@ -445,6 +447,7 @@ const state = {
   search: "",
   demo: !FB_OK,          // modo demostración (sin Firebase configurado)
   demoStore: { users: [], records: [], counters: {} },
+  userMap: {},           // username -> nombre (para etiqueta "Creado por")
   unsub: { records: null, dashboard: null, users: null } // listeners onSnapshot activos
 };
 
@@ -819,6 +822,13 @@ async function dbDeleteUser(id){
   if(state.demo){ state.demoStore.users=state.demoStore.users.filter(x=>x.id!==id); demoSave(); return; }
   await db.collection(COL_USERS).doc(id).delete();
 }
+/* Construye el mapa username -> nombre para la etiqueta "Creado por" */
+async function loadUserMap(){
+  const list = await dbListUsers();
+  const map = {};
+  list.forEach(u=>{ map[u.usuario] = u.nombre || u.usuario; });
+  state.userMap = map;
+}
 
 /* ---- Consecutivos (transacción atómica por formulario+año) ---- */
 async function nextConsecutivo(formCode){
@@ -841,10 +851,18 @@ async function nextConsecutivo(formCode){
 }
 
 /* ---- Registros ---- */
+/* Visibilidad: el admin ve todos los registros; el rol "seguridad"
+   solo ve los que él mismo creó (campo creadoPor). */
+function visibleForUser(rec){
+  if(!state.user) return false;
+  if(state.user.rol==="admin") return true;
+  return rec.creadoPor === state.user.usuario;
+}
+
 async function dbListRecords(formId){
-  if(state.demo){ return state.demoStore.records.filter(r=>r.formId===formId).sort((a,b)=>(b.consecutivo>a.consecutivo?1:-1)); }
+  if(state.demo){ return state.demoStore.records.filter(r=>r.formId===formId).filter(visibleForUser).sort((a,b)=>(b.consecutivo>a.consecutivo?1:-1)); }
   const snap = await db.collection(COL_RECORDS).where("formId","==",formId).get();
-  const arr = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  const arr = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser);
   arr.sort((a,b)=> (b.consecutivo||"").localeCompare(a.consecutivo||""));
   return arr;
 }
@@ -863,9 +881,9 @@ async function dbDeleteRecord(id){
 }
 async function dbCountByForm(){
   const counts={};
-  if(state.demo){ state.demoStore.records.forEach(r=>counts[r.formId]=(counts[r.formId]||0)+1); return counts; }
+  if(state.demo){ state.demoStore.records.filter(visibleForUser).forEach(r=>counts[r.formId]=(counts[r.formId]||0)+1); return counts; }
   const snap = await db.collection(COL_RECORDS).get();
-  snap.docs.forEach(d=>{ const f=d.data().formId; counts[f]=(counts[f]||0)+1; });
+  snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser).forEach(r=>{ counts[r.formId]=(counts[r.formId]||0)+1; });
   return counts;
 }
 
@@ -878,7 +896,7 @@ function subscribeRecords(formId, onChange){
   if(state.demo) return null;
   return db.collection(COL_RECORDS).where("formId","==",formId)
     .onSnapshot(snap=>{
-      const arr = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      const arr = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser);
       arr.sort((a,b)=> (b.consecutivo||"").localeCompare(a.consecutivo||""));
       onChange(arr);
     }, err=>{ console.warn("onSnapshot registros:", err); });
@@ -888,7 +906,7 @@ function subscribeCounts(onChange){
   return db.collection(COL_RECORDS)
     .onSnapshot(snap=>{
       const counts={};
-      snap.docs.forEach(d=>{ const f=d.data().formId; counts[f]=(counts[f]||0)+1; });
+      snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser).forEach(r=>{ counts[r.formId]=(counts[r.formId]||0)+1; });
       onChange(counts);
     }, err=>{ console.warn("onSnapshot conteos:", err); });
 }
@@ -1182,6 +1200,9 @@ async function openForm(formId){
   $("#newRec").onclick = ()=>openEditor(form, null);
   $("#recSearch").addEventListener("input", e=>{ state.search=e.target.value.toLowerCase(); paintRecords(); });
 
+  // El admin necesita los nombres de los creadores para la etiqueta
+  if(state.user.rol==="admin"){ try{ await loadUserMap(); }catch(e){} }
+
   // Detener listeners previos antes de abrir este formulario
   stopRealtime();
 
@@ -1237,12 +1258,14 @@ function paintRecords(){
 
   // columnas resumen: consecutivo, fecha, 2 campos clave, responsable, estado
   const summaryKeys = pickSummaryFields(form);
-  const canDelete = state.user.rol==="admin";
+  const isAdmin = state.user.rol==="admin";
+  const canDelete = isAdmin;
 
   cont.innerHTML = `<div class="table-wrap"><table class="tbl">
     <thead><tr>
       <th>Consecutivo</th>
       ${summaryKeys.map(k=>`<th class="${k.hideSm?'hide-sm':''}">${esc(k.label)}</th>`).join("")}
+      ${isAdmin?'<th>Creado por</th>':''}
       <th>Estado</th>
       <th style="text-align:right">Acciones</th>
     </tr></thead>
@@ -1253,6 +1276,7 @@ function paintRecords(){
         return `<tr>
           <td><span class="consec">${esc(r.consecutivo)}</span></td>
           ${summaryKeys.map(k=>`<td class="${k.hideSm?'hide-sm':''}">${esc(summaryValue(d, k))}</td>`).join("")}
+          ${isAdmin?`<td><span class="creator-tag" title="Creado por ${esc(creatorName(r.creadoPor))}"><span class="ct-av">${esc(initials(creatorName(r.creadoPor)))}</span>${esc(creatorName(r.creadoPor))}</span></td>`:''}
           <td><span class="badge-st ${complete?'complete':'partial'}">${complete?'Completa':'Pendiente'}</span></td>
           <td><div class="row-actions">
             <button class="icon-btn view" title="Ver documento" onclick="viewRecord('${r.id}')">${ICON.eye}</button>
@@ -1264,6 +1288,13 @@ function paintRecords(){
       }).join("")}
     </tbody>
   </table></div>`;
+}
+
+/* Resuelve el nombre legible de quien creó un registro (a partir del
+   username guardado en creadoPor). Usa un mapa cargado de usuarios. */
+function creatorName(usuario){
+  if(!usuario) return "—";
+  return (state.userMap && state.userMap[usuario]) || usuario;
 }
 
 function pickSummaryFields(form){
