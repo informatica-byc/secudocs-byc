@@ -550,7 +550,7 @@ const ACCENTS = {
 
 const FORMS = [
 {
-  code:"R-BASC-CO-007", id:"paquetes", logo:"bc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-COR", id:"paquetes", logo:"bc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Control de correos o paquetes",
   desc:"Registro de correspondencia y paquetes que ingresan o se entregan en planta.",
   icon:"inbox", accent:"emerald",
@@ -571,7 +571,7 @@ const FORMS = [
   ]
 },
 {
-  code:"R-BASC-CO-008", id:"dispositivos", logo:"bc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-DIS", id:"dispositivos", logo:"bc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Control de ingreso de computadoras y dispositivos electrónicos",
   desc:"Registro de laptops, tablets, discos y otros dispositivos que ingresan a las instalaciones.",
   icon:"laptop", accent:"ice",
@@ -592,7 +592,7 @@ const FORMS = [
   ]
 },
 {
-  code:"R-BASC-CO-012", id:"incidentes", logo:"bc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-INC", id:"incidentes", logo:"bc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Incidentes de seguridad",
   desc:"Registro de incidentes y discrepancias de seguridad en exportaciones.",
   icon:"shield", accent:"red",
@@ -615,7 +615,7 @@ const FORMS = [
   ]
 },
 {
-  code:"R-BASC-CO-014", id:"llaves", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-LLA", id:"llaves", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Control de retiro y entrega de llaves",
   desc:"Registro de retiro (salida) y entrega (devolución) de llaves al oficial de seguridad.",
   icon:"key", accent:"amber",
@@ -640,7 +640,7 @@ const FORMS = [
   footerSign:[{label:"Revisado por", key:"revisado_por"}]
 },
 {
-  code:"R-BASC-CO-017", id:"contenedores", logo:"bc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-CON", id:"contenedores", logo:"bc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Reporte de llegada de contenedores",
   desc:"Reporte de llegada de contenedores por parte del personal de seguridad.",
   icon:"container", accent:"teal",
@@ -666,7 +666,7 @@ const FORMS = [
   ]
 },
 {
-  code:"R-BPM-BC-025", id:"camiones", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-CAM", id:"camiones", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Inspección de camiones entrantes",
   desc:"Inspección sanitaria de camiones entrantes para recibo de producto.",
   icon:"truck", accent:"slate",
@@ -702,7 +702,7 @@ const FORMS = [
   ]
 },
 {
-  code:"R-BPM-BC-037", id:"fumigacion", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-FUM", id:"fumigacion", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Control de fumigación",
   desc:"Registro de fumigación por área (frecuencia: dos veces al mes).",
   icon:"bug", accent:"violet",
@@ -736,7 +736,7 @@ const FORMS = [
   ]
 },
 {
-  code:"R-SIG-CO-001", id:"visitantes", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-VIS", id:"visitantes", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Control de entrada y salida de visitantes",
   desc:"Registro de visitantes, proveedores y contratistas que ingresan a las instalaciones.",
   icon:"visit", accent:"gold",
@@ -763,7 +763,7 @@ const FORMS = [
   ]
 },
 {
-  code:"R-SO-CO-051", id:"vehiculos", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-VEH", id:"vehiculos", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Control de vehículos y motocicletas",
   desc:"Registro de vehículos y motocicletas en el parqueo (por sede / unidad).",
   icon:"car", accent:"slate",
@@ -787,7 +787,7 @@ const FORMS = [
   ]
 },
 {
-  code:"R-REG-CO-001", id:"tablet", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-TAB", id:"tablet", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Registro para entrega de tablet y cargador",
   desc:"Registro de entrega y recepción de tablet y cargador entre colaboradores.",
   icon:"laptop", accent:"cyan",
@@ -811,6 +811,17 @@ const FORMS = [
 ];
 
 const FORM_BY_ID = Object.fromEntries(FORMS.map(f=>[f.id,f]));
+
+/* Campo de compañía común a todos los formularios. Se inserta al inicio
+   de cada uno para que el usuario indique a cuál empresa corresponde. */
+FORMS.forEach(f=>{
+  if(f.fields.some(x=>x.k==="compania")) return; // evitar duplicado
+  f.fields.unshift(
+    {sec:"Compañía"},
+    {k:"compania", label:"Compañía", type:"select", req:true, half:true,
+      options:["B&C Exportadores","Bajo Cero"]}
+  );
+});
 </script>
 
 <script>
