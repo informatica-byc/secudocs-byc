@@ -787,7 +787,7 @@ const FORMS = [
   ]
 },
 {
-  code:"R-SO-CO-052", id:"tablet", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-REG-CO-001", id:"tablet", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Registro para entrega de tablet y cargador",
   desc:"Registro de entrega y recepción de tablet y cargador entre colaboradores.",
   icon:"laptop", accent:"cyan",
@@ -798,14 +798,14 @@ const FORMS = [
     {k:"hora_cambio", label:"Hora de cambio", type:"time", def:"now", req:true, half:true},
     {k:"tablet", label:"Tablet", type:"toggle", half:true},
     {k:"cargador", label:"Cargador", type:"toggle", half:true},
+    {sec:"Observaciones"},
+    {k:"observaciones", label:"Observaciones", type:"textarea", full:true},
     {sec:"Entrega"},
     {k:"entrega_nombre", label:"Entrega (Nombre)", type:"text", req:true, half:true},
     {k:"firma_entrega", label:"Firma de quien entrega", type:"signature", full:true, nameField:"entrega_nombre"},
     {sec:"Recepción"},
     {k:"recibe_nombre", label:"Recibe (Nombre)", type:"text", req:true, half:true},
-    {k:"firma_recibe", label:"Firma de quien recibe", type:"signature", full:true, nameField:"recibe_nombre"},
-    {sec:"Observaciones"},
-    {k:"observaciones", label:"Observaciones", type:"textarea", full:true}
+    {k:"firma_recibe", label:"Firma de quien recibe", type:"signature", full:true, nameField:"recibe_nombre"}
   ]
 }
 ];
