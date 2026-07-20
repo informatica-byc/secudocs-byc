@@ -544,7 +544,8 @@ const ACCENTS = {
   red:'linear-gradient(135deg,#c0392b,#e05a4a)',
   teal:'linear-gradient(135deg,#0e8a82,#27b3a8)',
   slate:'linear-gradient(135deg,#42566b,#647d97)',
-  amber:'linear-gradient(135deg,#c77f1a,#e0a445)'
+  amber:'linear-gradient(135deg,#c77f1a,#e0a445)',
+  cyan:'linear-gradient(135deg,#0e7490,#22b8cf)'
 };
 
 const FORMS = [
@@ -781,6 +782,28 @@ const FORMS = [
     {k:"licencia", label:"Licencia (vencimiento)", type:"date", half:true},
     {k:"fecha_licencia", label:"Fecha en que renovará la licencia", type:"date", half:true, showIfExpired:"licencia", hint:"La licencia está vencida"},
     {k:"ingreso_parqueo", label:"¿Ingreso al parqueo autorizado?", type:"toggle", full:true},
+    {sec:"Observaciones"},
+    {k:"observaciones", label:"Observaciones", type:"textarea", full:true}
+  ]
+},
+{
+  code:"R-SO-CO-052", id:"tablet", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  title:"Registro para entrega de tablet y cargador",
+  desc:"Registro de entrega y recepción de tablet y cargador entre colaboradores.",
+  icon:"laptop", accent:"cyan",
+  sistema:"Sistema Integrado de Gestión",
+  fields:[
+    {sec:"Datos del cambio"},
+    {k:"fecha", label:"Fecha", type:"date", req:true, def:"today", half:true},
+    {k:"hora_cambio", label:"Hora de cambio", type:"time", def:"now", req:true, half:true},
+    {k:"tablet", label:"Tablet", type:"toggle", half:true},
+    {k:"cargador", label:"Cargador", type:"toggle", half:true},
+    {sec:"Entrega"},
+    {k:"entrega_nombre", label:"Entrega (Nombre)", type:"text", req:true, half:true},
+    {k:"firma_entrega", label:"Firma de quien entrega", type:"signature", full:true, nameField:"entrega_nombre"},
+    {sec:"Recepción"},
+    {k:"recibe_nombre", label:"Recibe (Nombre)", type:"text", req:true, half:true},
+    {k:"firma_recibe", label:"Firma de quien recibe", type:"signature", full:true, nameField:"recibe_nombre"},
     {sec:"Observaciones"},
     {k:"observaciones", label:"Observaciones", type:"textarea", full:true}
   ]
@@ -2010,7 +2033,7 @@ function ensureSpace(doc, y, need, reset){
 }
 function imgSize(url){ return new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res({w:i.width,h:i.height}); i.onerror=rej; i.src=url; }); }
 function accentToRGB(a){
-  const map={emerald:[13,122,79],gold:[199,154,60],ice:[29,111,184],violet:[109,77,158],red:[192,57,43],teal:[14,138,130],slate:[66,86,107],amber:[199,127,26]};
+  const map={emerald:[13,122,79],gold:[199,154,60],ice:[29,111,184],violet:[109,77,158],red:[192,57,43],teal:[14,138,130],slate:[66,86,107],amber:[199,127,26],cyan:[14,116,144]};
   return map[a]||[13,122,79];
 }
 </script>
