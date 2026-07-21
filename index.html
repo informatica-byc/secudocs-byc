@@ -351,6 +351,7 @@ a{color:var(--emerald);text-decoration:none}
   .main{padding:18px 16px 80px}
   .form-grid{grid-template-columns:1fr}
   .topbar .user-chip .meta{display:none}
+  .sub-row{grid-template-columns:1fr!important}
 }
 @media(min-width:921px){.sidebar-logo{display:none}}
 @media(max-width:560px){
@@ -923,6 +924,47 @@ const FORMS = [
     {sec:"Seguimiento"},
     {k:"hallazgos_semana_corregidos", label:"¿Los hallazgos de la semana anterior fueron corregidos?", type:"toggle",
       hint:"Si no fueron corregidos, comunicar a: Jefe de cumplimiento Ujarrás (Laura Castro) · La Bruja (Alexis Acuña) · Bajo Cero (Grettel Pasos). Incumplimientos graves (puertas/candados/entradas forzadas, cámara averiada, perímetro comprometido, personas no autorizadas): comunicar de inmediato al Jefe de cumplimiento de la planta."},
+    {k:"revisado_por", label:"Revisado por", type:"text", half:true}
+  ]
+},
+{
+  code:"R-BPM-UJ-004", id:"higiene_personal", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  title:"Verificación de Cumplimiento de Higiene del Personal",
+  desc:"Frecuencia: cumplimiento de higiene 15 colaboradores/semana; revisión de locker 5 colaboradores/semana. La distribución de los días de inspección queda a discreción del inspector. Los colaboradores a quienes se les inspecciona el locker pueden ser distintos a los que se les inspecciona el resto de rubros.",
+  icon:"user", accent:"gold",
+  sistema:"Sistema de Gestión de Inocuidad Alimentaria BPM",
+  fields:[
+    {sec:"Datos generales de la inspección"},
+    {k:"fecha", label:"Fecha", type:"date", req:true, def:"today", half:true},
+    {k:"inspector", label:"Nombre del inspector responsable", type:"text", req:true, half:true},
+    {sec:"Verificación de higiene por colaborador"},
+    {k:"colaboradores", type:"repeater", full:true, addLabel:"Agregar colaborador", title:"Colaboradores inspeccionados",
+      cols:[
+        {k:"nombre", label:"Nombre de colaborador", type:"text"},
+        {k:"area", label:"Área", type:"text"},
+        {k:"estado_salud", label:"Estado de Salud", type:"select", options:["Cumple","No cumple","N/A"], hint:"Ausencia de síntomas de enfermedad (vómito, diarrea, gripe, fiebre, secreciones, sarpullidos u otras lesiones en la piel)."},
+        {k:"orden_locker", label:"Orden de lockers", type:"select", options:["Cumple","No cumple","N/A"], hint:"Locker limpio y ordenado, con candado y cerrado. Alimentos en recipiente o bolsa cerrada. Ausencia de objetos peligrosos o prohibidos."},
+        {k:"epp", label:"EPP", type:"select", options:["Cumple","No cumple","N/A"], hint:"Uso de EPP requerido para la actividad que realiza (por ejemplo, casco cuando aplique)."},
+        {k:"manos_unas", label:"Manos y Uñas", type:"select", options:["Cumple","No cumple","N/A"], hint:"Manos visualmente limpias, sin desprendimientos de piel ni cortaduras. Uñas limpias, sin esmalte, cortas y sin uñas postizas."},
+        {k:"higiene_personal", label:"Higiene Personal", type:"select", options:["Cumple","No cumple","N/A"], hint:"Hombres: sin perfume, sin barba/bigote o con cubre barba/bigote. Mujeres: sin maquillaje, sin perfume, sin pestañas postizas."},
+        {k:"uniforme", label:"Uniforme Completo", type:"select", options:["Cumple","No cumple","N/A"], hint:"Redecilla correcta, guantes y delantal limpios (cuando aplique), camisa/gabacha y pantalones en buen estado."},
+        {k:"botas", label:"Botas y Zapatos de Seguridad", type:"select", options:["Cumple","No cumple","N/A"], hint:"Botas o zapatos de seguridad visualmente limpios y en buen estado."},
+        {k:"peligros_fisicos", label:"Peligros Físicos/Accesorios", type:"select", options:["Cumple","No cumple","N/A"], hint:"Ausencia de aretes, anillos, pulseras, reloj, monedas sueltas, llaves sueltas o celular (salvo excepción laboral)."},
+        {k:"limpieza_area", label:"Limpieza y Orden del Área de Trabajo", type:"select", options:["Cumple","No cumple","N/A"], hint:"Mantiene limpia y ordenada su área, participa en inspección preoperacional y aseo final; coloca utensilios en su lugar."}
+      ]},
+    {sec:"Incumplimientos / Hallazgos"},
+    {k:"hallazgos", type:"repeater", full:true, addLabel:"Agregar hallazgo", title:"Detalle de incumplimientos y hallazgos",
+      cols:[
+        {k:"fecha_hallazgo", label:"Fecha de hallazgo", type:"text"},
+        {k:"descripcion", label:"Descripción de hallazgo", type:"text"},
+        {k:"colaborador", label:"Colaborador que incumple", type:"text"},
+        {k:"firma_colaborador", label:"Firma del colaborador", type:"text"},
+        {k:"firma_jefe", label:"Firma del jefe directo", type:"text"},
+        {k:"firma_inspector", label:"Firma del inspector", type:"text"},
+        {k:"accion_correctiva", label:"Acción correctiva (AC) implementada", type:"text"},
+        {k:"fecha_cierre", label:"Fecha de cierre de AC", type:"text"}
+      ]},
+    {sec:"Cierre"},
     {k:"revisado_por", label:"Revisado por", type:"text", half:true}
   ]
 }
@@ -1799,13 +1841,13 @@ function initFieldBehaviors(form, data, originals, lockField){
       cont.innerHTML="";
       data[k].forEach((row,idx)=>{
         const rEl=el("div","sub-row");
-        rEl.style.gridTemplateColumns = `repeat(${f.cols.length}, 1fr) auto`;
+        rEl.style.gridTemplateColumns = f.cols.length>6 ? `repeat(auto-fit, minmax(150px,1fr))` : `repeat(${f.cols.length}, 1fr) auto`;
         rEl.innerHTML = f.cols.map(c=>{
           const cv=row[c.k]||"";
           if(c.type==="select"){
-            return `<div class="ff"><label>${esc(c.label)}</label><select data-rk="${c.k}" data-idx="${idx}" ${locked?'disabled':''}><option value="">—</option>${c.options.map(o=>`<option ${cv===o?'selected':''}>${esc(o)}</option>`).join("")}</select></div>`;
+            return `<div class="ff"><label${c.hint?` title="${esc(c.hint)}"`:''}>${esc(c.label)}</label><select data-rk="${c.k}" data-idx="${idx}" ${locked?'disabled':''}><option value="">—</option>${c.options.map(o=>`<option ${cv===o?'selected':''}>${esc(o)}</option>`).join("")}</select></div>`;
           }
-          return `<div class="ff"><label>${esc(c.label)}</label><input data-rk="${c.k}" data-idx="${idx}" value="${esc(cv)}" ${locked?'disabled':''}></div>`;
+          return `<div class="ff"><label${c.hint?` title="${esc(c.hint)}"`:''}>${esc(c.label)}</label><input data-rk="${c.k}" data-idx="${idx}" value="${esc(cv)}" ${locked?'disabled':''}></div>`;
         }).join("") + (locked?'':`<button type="button" class="rm-row" data-rm="${idx}">${ICON.trash.replace(/width="17" height="17"/,'width="15" height="15"')}</button>`);
         cont.appendChild(rEl);
       });
