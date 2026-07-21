@@ -1170,8 +1170,7 @@ const FORMS = [
     {sec:"Verificación de cloro (12%)"},
     {k:"cloro", type:"repeater", full:true, addLabel:"Agregar verificación", title:"Verificación de concentración de cloro",
       cols:[
-        {k:"punto", label:"Punto", type:"select", options:["PCC 1 (diario)","Pediluvio 1 (L-J)","Pediluvio 2 (K-V)","Pediluvio 3 (M-S)"]},
-        {k:"dia", label:"Día", type:"select", options:["L","K","M","J","V","S"]},
+        {k:"punto", label:"Punto", type:"select", options:["PCC 1","Pediluvio 1","Pediluvio 2","Pediluvio 3"]},
         {k:"resultado", label:"Resultado", type:"select", options:["Cumple","No cumple","N/A"]}
       ]},
     {sec:"Registros complementarios"},
@@ -2136,8 +2135,6 @@ function setupSignaturePad(canvas, box, key, data){
     const rect = canvas.getBoundingClientRect();
     const w = rect.width||box.clientWidth||400;
     const h = 150;
-    // preservar contenido al re-escalar
-    const prev = canvas.toDataURL();
     canvas.width = w*ratio; canvas.height = h*ratio;
     const ctx = canvas.getContext("2d");
     ctx.scale(ratio,ratio);
