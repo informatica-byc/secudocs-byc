@@ -925,11 +925,16 @@ async function dbDeleteRecord(id){
   await db.collection(COL_RECORDS).doc(id).delete();
 }
 async function dbCountByForm(){
-  const counts={};
-  if(state.demo){ state.demoStore.records.filter(visibleForUser).forEach(r=>counts[r.formId]=(counts[r.formId]||0)+1); return counts; }
+  const byForm={}, byCompany={};
+  const tally=r=>{
+    byForm[r.formId]=(byForm[r.formId]||0)+1;
+    const comp=(r.data&&r.data.compania)||"Sin compañía";
+    byCompany[comp]=(byCompany[comp]||0)+1;
+  };
+  if(state.demo){ state.demoStore.records.filter(visibleForUser).forEach(tally); return {byForm, byCompany}; }
   const snap = await db.collection(COL_RECORDS).get();
-  snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser).forEach(r=>{ counts[r.formId]=(counts[r.formId]||0)+1; });
-  return counts;
+  snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser).forEach(tally);
+  return {byForm, byCompany};
 }
 
 /* ======================================================================
@@ -950,9 +955,13 @@ function subscribeCounts(onChange){
   if(state.demo) return null;
   return db.collection(COL_RECORDS)
     .onSnapshot(snap=>{
-      const counts={};
-      snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser).forEach(r=>{ counts[r.formId]=(counts[r.formId]||0)+1; });
-      onChange(counts);
+      const byForm={}, byCompany={};
+      snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser).forEach(r=>{
+        byForm[r.formId]=(byForm[r.formId]||0)+1;
+        const comp=(r.data&&r.data.compania)||"Sin compañía";
+        byCompany[comp]=(byCompany[comp]||0)+1;
+      });
+      onChange({byForm, byCompany});
     }, err=>{ console.warn("onSnapshot conteos:", err); });
 }
 function subscribeUsers(onChange){
@@ -1159,6 +1168,10 @@ async function renderDashboard(){
     <div class="stat-strip" id="statStrip">
       <div class="loader-wrap" style="grid-column:1/-1;padding:24px"><div class="spinner"></div><p>Cargando estadísticas…</p></div>
     </div>
+    <div class="section-title">${ICON.hash?ICON.hash.replace(/width="18" height="18"/,'width="15" height="15"'):''} Registros por compañía</div>
+    <div class="stat-strip" id="companyStrip">
+      <div class="loader-wrap" style="grid-column:1/-1;padding:24px"><div class="spinner"></div><p>Cargando…</p></div>
+    </div>
     <div class="toolbar">
       <div class="search-box" style="max-width:100%">
         <span class="ico">${ICON.search}</span>
@@ -1204,16 +1217,26 @@ async function renderDashboard(){
     $$(".form-card").forEach(card=>{ card.onclick = ()=>openForm(card.dataset.form); });
   };
 
-  const paint = (counts)=>{
+  const COMPANIES = ["B&C Ujarrás","B&C La Bruja","Bajo Cero"];
+
+  const paint = ({byForm, byCompany})=>{
     if(state.view!=="dashboard") return;
-    lastCounts = counts;
-    const total = Object.values(counts).reduce((a,b)=>a+b,0);
+    lastCounts = byForm;
+    const total = Object.values(byForm).reduce((a,b)=>a+b,0);
     const ss = $("#statStrip");
     if(ss) ss.innerHTML = `
       <div class="stat"><div class="sv">${FORMS.length}</div><div class="sl">Formularios digitalizados</div></div>
       <div class="stat"><div class="sv">${total}</div><div class="sl">Registros totales</div></div>
       <div class="stat"><div class="sv">${yr}</div><div class="sl">Año en curso</div></div>
       <div class="stat"><div class="sv">${roleLabel(state.user.rol)}</div><div class="sl">Tu nivel de acceso</div></div>`;
+    const cs = $("#companyStrip");
+    if(cs){
+      // compañías fijas primero (aunque tengan 0), luego cualquier otro valor que aparezca en los datos
+      const extra = Object.keys(byCompany).filter(k=>!COMPANIES.includes(k));
+      const list = [...COMPANIES, ...extra];
+      cs.innerHTML = list.map(comp=>`
+        <div class="stat"><div class="sv">${byCompany[comp]||0}</div><div class="sl">${esc(comp)}</div></div>`).join("");
+    }
     paintCards();
   };
 
@@ -1224,20 +1247,20 @@ async function renderDashboard(){
   }
 
   if(state.demo){
-    let counts={};
-    try{ counts = await dbCountByForm(); }catch(e){ console.warn(e); }
-    paint(counts);
+    let data={byForm:{}, byCompany:{}};
+    try{ data = await dbCountByForm(); }catch(e){ console.warn(e); }
+    paint(data);
   } else {
     // Carga inicial inmediata + suscripción en tiempo real
     let first = true;
-    state.unsub.dashboard = subscribeCounts(counts=>{
-      paint(counts);
+    state.unsub.dashboard = subscribeCounts(data=>{
+      paint(data);
       if(!first) flashLiveDot();
       first = false;
     });
     if(!state.unsub.dashboard){
-      let counts={}; try{ counts = await dbCountByForm(); }catch(e){}
-      paint(counts);
+      let data={byForm:{}, byCompany:{}}; try{ data = await dbCountByForm(); }catch(e){}
+      paint(data);
     }
   }
 }
