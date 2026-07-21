@@ -127,6 +127,7 @@ a{color:var(--emerald);text-decoration:none}
 .topbar .user-chip .meta small{font-size:10.5px;color:var(--muted)}
 .role-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:20px}
 .role-tag.admin{background:rgba(199,154,60,.18);color:var(--gold-d)}
+.role-tag.encargado{background:rgba(13,122,79,.16);color:var(--emerald-d)}
 .role-tag.seguridad{background:rgba(29,111,184,.15);color:var(--ice-d)}
 
 .shell{flex:1;display:flex;max-width:1600px;width:100%;margin:0 auto}
@@ -886,12 +887,20 @@ async function nextConsecutivo(formCode){
   return `${formCode}-${year}-${String(n).padStart(4,"0")}`;
 }
 
+/* ---- Roles ---- */
+/* "admin": acceso total, único que ve el módulo de Administración y puede eliminar boletas.
+   "encargado": mismo acceso que admin sobre las boletas (ve todo, edita todo) pero
+   NO puede eliminar registros ni entrar al módulo de Administración.
+   "seguridad": solo ve/crea/completa lo propio, campos ya llenos quedan bloqueados. */
+function hasFullAccess(rol){ return rol==="admin" || rol==="encargado"; }
+function roleLabel(rol){ return rol==="admin"?"Administrador":(rol==="encargado"?"Encargado":"Seguridad"); }
+
 /* ---- Registros ---- */
-/* Visibilidad: el admin ve todos los registros; el rol "seguridad"
+/* Visibilidad: admin y encargado ven todos los registros; el rol "seguridad"
    solo ve los que él mismo creó (campo creadoPor). */
 function visibleForUser(rec){
   if(!state.user) return false;
-  if(state.user.rol==="admin") return true;
+  if(hasFullAccess(state.user.rol)) return true;
   return rec.creadoPor === state.user.usuario;
 }
 
@@ -1104,7 +1113,7 @@ function renderApp(){
         </button>`:''}
         <div class="sec-lbl">Sesión</div>
         <div class="nav-item" style="cursor:default">
-          <span class="role-tag ${state.user.rol}">${state.user.rol==='admin'?'Administrador':'Seguridad'}</span>
+          <span class="role-tag ${state.user.rol}">${roleLabel(state.user.rol)}</span>
         </div>
         <button class="nav-item danger" data-nav="logout">
           <span class="ni-ico">${ICON.logout}</span> Cerrar sesión
@@ -1204,7 +1213,7 @@ async function renderDashboard(){
       <div class="stat"><div class="sv">${FORMS.length}</div><div class="sl">Formularios digitalizados</div></div>
       <div class="stat"><div class="sv">${total}</div><div class="sl">Registros totales</div></div>
       <div class="stat"><div class="sv">${yr}</div><div class="sl">Año en curso</div></div>
-      <div class="stat"><div class="sv">${state.user.rol==='admin'?'Admin':'Seguridad'}</div><div class="sl">Tu nivel de acceso</div></div>`;
+      <div class="stat"><div class="sv">${roleLabel(state.user.rol)}</div><div class="sl">Tu nivel de acceso</div></div>`;
     paintCards();
   };
 
@@ -1264,8 +1273,8 @@ async function openForm(formId){
   $("#newRec").onclick = ()=>openEditor(form, null);
   $("#recSearch").addEventListener("input", e=>{ state.search=e.target.value.toLowerCase(); paintRecords(); });
 
-  // El admin necesita los nombres de los creadores para la etiqueta
-  if(state.user.rol==="admin"){ try{ await loadUserMap(); }catch(e){} }
+  // Admin y Encargado necesitan los nombres de los creadores para la etiqueta
+  if(hasFullAccess(state.user.rol)){ try{ await loadUserMap(); }catch(e){} }
 
   // Detener listeners previos antes de abrir este formulario
   stopRealtime();
@@ -1322,14 +1331,14 @@ function paintRecords(){
 
   // columnas resumen: consecutivo, fecha, 2 campos clave, responsable, estado
   const summaryKeys = pickSummaryFields(form);
-  const isAdmin = state.user.rol==="admin";
-  const canDelete = isAdmin;
+  const fullAccess = hasFullAccess(state.user.rol);
+  const canDelete = state.user.rol==="admin";
 
   cont.innerHTML = `<div class="table-wrap"><table class="tbl">
     <thead><tr>
       <th>Consecutivo</th>
       ${summaryKeys.map(k=>`<th class="${k.hideSm?'hide-sm':''}">${esc(k.label)}</th>`).join("")}
-      ${isAdmin?'<th>Creado por</th>':''}
+      ${fullAccess?'<th>Creado por</th>':''}
       <th>Estado</th>
       <th style="text-align:right">Acciones</th>
     </tr></thead>
@@ -1340,7 +1349,7 @@ function paintRecords(){
         return `<tr>
           <td><span class="consec">${esc(r.consecutivo)}</span></td>
           ${summaryKeys.map(k=>`<td class="${k.hideSm?'hide-sm':''}">${esc(summaryValue(d, k))}</td>`).join("")}
-          ${isAdmin?`<td><span class="creator-tag" title="Creado por ${esc(creatorName(r.creadoPor))}"><span class="ct-av">${esc(initials(creatorName(r.creadoPor)))}</span>${esc(creatorName(r.creadoPor))}</span></td>`:''}
+          ${fullAccess?`<td><span class="creator-tag" title="Creado por ${esc(creatorName(r.creadoPor))}"><span class="ct-av">${esc(initials(creatorName(r.creadoPor)))}</span>${esc(creatorName(r.creadoPor))}</span></td>`:''}
           <td><span class="badge-st ${complete?'complete':'partial'}">${complete?'Completa':'Pendiente'}</span></td>
           <td><div class="row-actions">
             <button class="icon-btn view" title="Ver documento" onclick="viewRecord('${r.id}')">${ICON.eye}</button>
@@ -1415,7 +1424,7 @@ async function openEditor(form, record){
   // valor no se pueden modificar. Guardamos snapshot.
   const originals = record ? JSON.parse(JSON.stringify(record.data||{})) : {};
   const lockField = (f)=>{
-    if(role==="admin") return false;
+    if(hasFullAccess(role)) return false;
     if(isNew) return false;
     const ov = originals[f.k];
     return !(ov==null || ov==="" || (Array.isArray(ov)&&ov.length===0));
@@ -2089,7 +2098,7 @@ async function renderUsers(){
   main.innerHTML=`
     <div class="page-head">
       <h2>Gestión de usuarios ${state.demo?'':'<span class="live-badge" id="liveBadge" title="Actualización en tiempo real"><span class="live-dot"></span> En vivo</span>'}</h2>
-      <p>Creá, editá y eliminá las cuentas de acceso. Los usuarios con rol <b>Seguridad</b> solo pueden crear y completar boletas; los <b>Administradores</b> tienen acceso total.</p>
+      <p>Creá, editá y eliminá las cuentas de acceso. Los usuarios con rol <b>Seguridad</b> solo pueden crear y completar boletas; los <b>Encargados</b> tienen el mismo acceso que un administrador sobre las boletas pero no pueden eliminar registros ni entrar a este módulo; los <b>Administradores</b> tienen acceso total.</p>
     </div>
     <div class="toolbar">
       <div class="search-box"><span class="ico">${ICON.search}</span><input id="userSearch" placeholder="Buscar usuario…"></div>
@@ -2109,10 +2118,10 @@ async function renderUsers(){
     if(f.length===0){ list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.users}</div><h3>Sin usuarios</h3></div>`; return; }
     list.innerHTML=`<div class="fade-list">`+f.map(u=>`
       <div class="user-card">
-        <div class="uc-av" style="background:${u.rol==='admin'?ACCENTS.gold:ACCENTS.ice}">${initials(u.nombre)}</div>
+        <div class="uc-av" style="background:${u.rol==='admin'?ACCENTS.gold:(u.rol==='encargado'?ACCENTS.emerald:ACCENTS.ice)}">${initials(u.nombre)}</div>
         <div class="uc-info">
           <b>${esc(u.nombre)}</b>
-          <small>@${esc(u.usuario)} · <span class="role-tag ${u.rol}">${u.rol==='admin'?'Administrador':'Seguridad'}</span></small>
+          <small>@${esc(u.usuario)} · <span class="role-tag ${u.rol}">${roleLabel(u.rol)}</span></small>
         </div>
         <div class="uc-actions">
           <button class="icon-btn edit" title="Editar" onclick="window._userEdit('${u.id}')">${ICON.edit}</button>
@@ -2177,6 +2186,7 @@ function userEditor(user, onDone){
         <div class="ff" style="margin-bottom:14px"><label>Rol <span class="req">*</span></label>
           <select id="ueRole">
             <option value="seguridad" ${user?.rol==='seguridad'?'selected':''}>Seguridad (crear y completar)</option>
+            <option value="encargado" ${user?.rol==='encargado'?'selected':''}>Encargado (acceso total, sin eliminar ni administración)</option>
             <option value="admin" ${user?.rol==='admin'?'selected':''}>Administrador (acceso total)</option>
           </select></div>
         <div class="ff"><label>Contraseña ${isNew?'<span class="req">*</span>':'<span style="font-weight:400;color:var(--muted)">(dejar vacío para no cambiar)</span>'}</label>
