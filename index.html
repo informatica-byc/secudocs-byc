@@ -1626,7 +1626,7 @@ function buildFormBody(form, data, lockField){
     if(f.sec){
       flushSec();
       const arrowIco = ICON.arrow.replace(/width="15" height="15"/,'width="13" height="13"').replace('<svg ','<svg class="coll-arrow" ');
-      out += `<div class="coll-section"><div class="section-title" data-collsec>${arrowIco} ${esc(f.sec)}</div><div class="coll-body">`;
+      out += `<div class="coll-section collapsed"><div class="section-title" data-collsec>${arrowIco} ${esc(f.sec)}</div><div class="coll-body">`;
       sec = true;
     } else {
       out += renderField(f, data, lockField(f));
