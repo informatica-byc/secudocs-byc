@@ -149,6 +149,27 @@ a{color:var(--emerald);text-decoration:none}
 .page-head{margin-bottom:22px;animation:floatUp .5s both}
 .page-head h2{font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-.5px;display:flex;align-items:center;gap:11px}
 .live-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--font);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--emerald-d);background:rgba(22,160,106,.12);border:1px solid rgba(22,160,106,.28);padding:3px 10px 3px 8px;border-radius:20px}
+.ops-counter{display:flex;align-items:center;gap:9px;padding:6px 12px 6px 10px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line);margin-right:12px;min-width:210px;cursor:default;transition:.2s}
+.ops-counter .ops-ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;flex-shrink:0}
+.ops-counter.ok .ops-ico{background:var(--grad-emerald)}
+.ops-counter.warn{border-color:rgba(217,138,31,.4);background:rgba(217,138,31,.07)}
+.ops-counter.warn .ops-ico{background:linear-gradient(135deg,#c77f1a,#e0a445)}
+.ops-counter.danger{border-color:rgba(192,57,43,.45);background:rgba(192,57,43,.08)}
+.ops-counter.danger .ops-ico{background:linear-gradient(135deg,#a82c20,#c0392b)}
+.ops-counter .ops-info{flex:1;min-width:0;line-height:1.2}
+.ops-counter .ops-title{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.ops-counter .ops-nums{font-size:11px;color:var(--ink-soft)}
+.ops-counter .ops-nums b{color:var(--ink);font-weight:700}
+.ops-counter .ops-bars{display:flex;flex-direction:column;gap:2px;margin-top:3px}
+.ops-counter .ops-bar{height:3px;border-radius:3px;background:var(--line-2);overflow:hidden}
+.ops-counter .ops-bar span{display:block;height:100%;background:var(--emerald-l);border-radius:3px;transition:width .4s}
+.ops-counter .ops-bar.w span{background:var(--ice)}
+.ops-counter.warn .ops-bar span{background:var(--warn)}
+.ops-counter.danger .ops-bar span{background:var(--danger)}
+.ops-counter .ops-pct{font-family:var(--display);font-weight:800;font-size:15px;color:var(--ink-soft);flex-shrink:0}
+.ops-counter.warn .ops-pct{color:var(--warn)}
+.ops-counter.danger .ops-pct{color:var(--danger)}
+@media(max-width:720px){.ops-counter{min-width:0;padding:6px}.ops-counter .ops-info{display:none}}
 .live-badge .live-dot{width:8px;height:8px;border-radius:50%;background:var(--emerald-l);box-shadow:0 0 0 0 rgba(22,160,106,.6);animation:livethrob 2s infinite}
 @keyframes livethrob{0%{box-shadow:0 0 0 0 rgba(22,160,106,.55)}70%{box-shadow:0 0 0 7px rgba(22,160,106,0)}100%{box-shadow:0 0 0 0 rgba(22,160,106,0)}}
 .live-badge.pulse-live{animation:liveflash .7s ease}
@@ -470,6 +491,61 @@ function stopRealtime(which){
   keys.forEach(k=>{ if(state.unsub[k]){ try{ state.unsub[k](); }catch(e){} state.unsub[k]=null; } });
 }
 
+/* ======================================================================
+   CONTADOR DE OPERACIONES DE FIRESTORE (uso diario)
+   El SDK cliente no expone el consumo real de la consola, así que
+   estimamos las operaciones que hace ESTE dispositivo y las acumulamos
+   por día en localStorage. Sirve como aviso temprano para no acercarse
+   al límite del plan gratuito (Spark): 50.000 lecturas y 20.000
+   escrituras por día. El total real del proyecto es la suma de todos
+   los dispositivos; este contador es una referencia local.
+   ====================================================================== */
+const OPS_KEY = "secudocs_ops";
+const OPS_LIMIT_READS = 50000;   // límite diario de lecturas (plan Spark)
+const OPS_LIMIT_WRITES = 20000;  // límite diario de escrituras (plan Spark)
+const opsState = { day:"", reads:0, writes:0 };
+
+function opsToday(){ return new Date().toISOString().slice(0,10); }
+function opsLoad(){
+  try{
+    const d = JSON.parse(localStorage.getItem(OPS_KEY));
+    if(d && d.day===opsToday()){ opsState.day=d.day; opsState.reads=d.reads||0; opsState.writes=d.writes||0; return; }
+  }catch(e){}
+  opsState.day=opsToday(); opsState.reads=0; opsState.writes=0;
+  opsSave();
+}
+function opsSave(){ try{ localStorage.setItem(OPS_KEY, JSON.stringify(opsState)); }catch(e){} }
+function trackOps(reads=0, writes=0){
+  if(state.demo) return;
+  if(opsState.day!==opsToday()){ opsState.day=opsToday(); opsState.reads=0; opsState.writes=0; }
+  opsState.reads += reads;
+  opsState.writes += writes;
+  opsSave();
+  renderOpsBadge();
+}
+function renderOpsBadge(){
+  const el = document.getElementById("opsCounter");
+  if(!el) return;
+  const r = opsState.reads, w = opsState.writes;
+  const pr = Math.min(100, Math.round(r/OPS_LIMIT_READS*100));
+  const pw = Math.min(100, Math.round(w/OPS_LIMIT_WRITES*100));
+  const level = Math.max(pr,pw);
+  const cls = level>=90?"danger":(level>=70?"warn":"ok");
+  el.className = "ops-counter "+cls;
+  el.innerHTML = `
+    <div class="ops-ico">${ICON.gauge||ICON.hash}</div>
+    <div class="ops-info">
+      <div class="ops-title">Operaciones Firestore · hoy</div>
+      <div class="ops-nums"><b>${r.toLocaleString("es-CR")}</b> lecturas · <b>${w.toLocaleString("es-CR")}</b> escrituras</div>
+      <div class="ops-bars">
+        <div class="ops-bar"><span style="width:${pr}%"></span></div>
+        <div class="ops-bar w"><span style="width:${pw}%"></span></div>
+      </div>
+    </div>
+    <div class="ops-pct">${level}%</div>`;
+  el.title = `Lecturas: ${r.toLocaleString("es-CR")} / ${OPS_LIMIT_READS.toLocaleString("es-CR")} (${pr}%)\nEscrituras: ${w.toLocaleString("es-CR")} / ${OPS_LIMIT_WRITES.toLocaleString("es-CR")} (${pw}%)\nContador local de este dispositivo. Se reinicia cada día.`;
+}
+
 /* Animación breve del indicador "En vivo" cuando llega un cambio remoto */
 function flashLiveDot(){
   const lb = document.getElementById("liveBadge");
@@ -536,7 +612,11 @@ const ICON = {
   bug:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M19 7l-3 2M5 7l3 2m11 6h-3M5 15h3m11 4l-3-2M5 19l3-2M12 2v4"/></svg>',
   car:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm14 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0zM3 17l1.5-7A2 2 0 0 1 6.4 8.5h11.2a2 2 0 0 1 1.9 1.5L21 17"/></svg>',
   inbox:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
-  visit:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>'
+  visit:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>',
+  leaf:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>',
+  clipboard:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6M9 16h6"/></svg>',
+  droplet:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>',
+  gauge:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>'
 };
 </script>
 
@@ -966,6 +1046,143 @@ const FORMS = [
     {sec:"Cierre"},
     {k:"revisado_por", label:"Revisado por", type:"text", half:true}
   ]
+},
+{
+  code:"R-SEG-IPF", id:"insp_personal_fincas", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  title:"Inspección Personal Fincas",
+  desc:"Verificación de higiene del personal en fincas (6 colaboradores/día). Cuadrilla: U (Ujarrás) / S (Santiago).",
+  icon:"leaf", accent:"emerald",
+  sistema:"Sistema de Gestión de Inocuidad Alimentaria BPM",
+  instructions:"Enfermedad: gripe, tos, diarrea, vómito, piel pálida, fiebre, secreciones en los oídos. Joyería: anillos, relojes, cadenas, brazaletes, aretes. Las firmas del colaborador y del encargado de cuadrilla se registran solo en caso de incumplimiento.",
+  fields:[
+    {sec:"Datos generales"},
+    {k:"fecha", label:"Fecha", type:"date", req:true, def:"today", half:true},
+    {k:"responsable", label:"Responsable de inspección", type:"text", req:true, half:true},
+    {sec:"Colaboradores inspeccionados"},
+    {k:"colaboradores", type:"repeater", full:true, addLabel:"Agregar colaborador", title:"Inspección por colaborador",
+      cols:[
+        {k:"nombre", label:"Nombre de colaborador", type:"text"},
+        {k:"cuadrilla", label:"Cuadrilla", type:"select", options:["U (Ujarrás)","S (Santiago)"]},
+        {k:"unas_cortas", label:"Uñas cortas", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"sin_perfumes", label:"Sin perfumes", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"pantalon", label:"Pantalón sin huecos", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"unas_limpias", label:"Uñas limpias", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"sin_enfermedad", label:"Ausencia de enfermedad", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"sin_heridas", label:"Ausencia de heridas en la piel", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"sin_joyeria", label:"Ausencia de joyería", type:"select", options:["Cumple","No cumple","N/A"]}
+      ]},
+    {sec:"Incumplimientos"},
+    {k:"incumplimientos", type:"repeater", full:true, addLabel:"Agregar incumplimiento", title:"Firmas por incumplimiento",
+      cols:[
+        {k:"colaborador", label:"Colaborador que incumple", type:"text"},
+        {k:"detalle", label:"Detalle del incumplimiento", type:"text"},
+        {k:"firma_colaborador", label:"Firma colaborador", type:"text"},
+        {k:"firma_encargado", label:"Firma encargado cuadrilla", type:"text"}
+      ]},
+    {sec:"Cierre"},
+    {k:"observaciones", label:"Observaciones", type:"textarea", full:true},
+    {k:"firma_responsable", label:"Firma del responsable de inspección", type:"signature", full:true, nameField:"responsable"}
+  ]
+},
+{
+  code:"R-SEG-IGF", id:"insp_general_fincas", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  title:"Inspección General Fincas",
+  desc:"Bitácora diaria de trabajo en fincas: servicios sanitarios, inspección general y camiones.",
+  icon:"clipboard", accent:"teal",
+  sistema:"Sistema de Gestión de Inocuidad Alimentaria BPM",
+  instructions:"Cumple: ✓ o C. No cumple: NC. No aplica: NA. Servicios sanitarios: frecuencia mínima según horario semanal, 50% de los baños de la finca. Inspección general: según horario semanal. Camiones: mínimo 1 día.",
+  fields:[
+    {sec:"Datos generales"},
+    {k:"fecha", label:"Fecha", type:"date", req:true, def:"today", half:true},
+    {k:"responsable", label:"Responsable de inspección", type:"text", req:true, half:true},
+    {sec:"Inspección de servicios sanitarios"},
+    {k:"sanitarios", type:"repeater", full:true, addLabel:"Agregar baño", title:"Servicios sanitarios (50% de los baños)",
+      cols:[
+        {k:"finca", label:"Finca", type:"text"},
+        {k:"no_bano", label:"N° Baño", type:"text"},
+        {k:"tipo", label:"Tipo", type:"select", options:["Inodoro (I)","Letrina (L)"]},
+        {k:"limpio", label:"Limpio", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"sin_olor", label:"Ausencia mal olor", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"habilitado", label:"Habilitado", type:"select", options:["Cumple","No cumple","N/A"]}
+      ]},
+    {sec:"Inspección general fincas"},
+    {k:"general", type:"repeater", full:true, addLabel:"Agregar finca", title:"Inspección general",
+      cols:[
+        {k:"finca", label:"Finca", type:"text"},
+        {k:"sin_basura", label:"Ausencia cúmulos de basura", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"comedores", label:"Comedores habilitados", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"sin_derrames", label:"Ausencia vertidos y derrames", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"sin_fugas", label:"Ausencia fugas de agua", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"agua_potable", label:"Acceso a agua potable", type:"select", options:["Cumple","No cumple","N/A"]}
+      ]},
+    {sec:"Inspección de camiones"},
+    {k:"camiones", type:"repeater", full:true, addLabel:"Agregar camión", title:"Inspección de camiones",
+      cols:[
+        {k:"chofer", label:"Nombre del chofer", type:"text"},
+        {k:"placa", label:"Placa", type:"text"},
+        {k:"agua_tuberias", label:"Agua en las tuberías", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"caja_insumos", label:"Caja con jabón, papel y toallas", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"cajon_limpio", label:"Cajón limpieza aceptable", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"cajon_sin_olor", label:"Ausencia malos olores en cajón", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"firma_chofer", label:"Firma chofer (si incumple)", type:"text"}
+      ]},
+    {sec:"Cierre"},
+    {k:"observaciones", label:"Observaciones", type:"textarea", full:true},
+    {k:"firma_responsable", label:"Firma del responsable de inspección", type:"signature", full:true, nameField:"responsable"}
+  ]
+},
+{
+  code:"R-SEG-PED", id:"control_pediluvios", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  title:"Control de Pediluvios y Bitácora de Planta",
+  desc:"Bitácora diaria de trabajo en planta: generales, servicios sanitarios, pasillos, pediluvios y verificación de cloro.",
+  icon:"droplet", accent:"cyan",
+  sistema:"Sistema de Gestión de Inocuidad Alimentaria BPM",
+  instructions:"Cumple: ✓. No cumple: X. No aplica: NA. Pediluvios: registre estado por área (sucia / limpia / despacho). Verificación de concentración de cloro al 12% según frecuencia. Entregar esta hoja de manera semanal al jefe de cumplimiento.",
+  fields:[
+    {sec:"Datos generales"},
+    {k:"fecha", label:"Fecha", type:"date", req:true, def:"today", half:true},
+    {k:"inspector", label:"Nombre del inspector", type:"text", req:true, half:true},
+    {sec:"Generales de planta"},
+    {k:"gen_alrededores", label:"Alrededores sin exceso de basura", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"gen_basureros", label:"Basureros externos con tapa", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"gen_derrames", label:"Ausencia de derrames químicos", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"gen_pisos", label:"Ausencia de basura/polvo en pisos y pasillos", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {sec:"Servicios sanitarios"},
+    {k:"san_limpios", label:"Baños limpios y sin mal olor", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"san_papel", label:"Presencia de papel higiénico", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"san_jabon", label:"Presencia de jabón de manos", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"san_toalla", label:"Presencia de toalla", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"san_agua", label:"Presencia de agua potable", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {sec:"Pasillos"},
+    {k:"pas_despejados", label:"Pasillos despejados (sin obstáculos)", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"pas_extintores", label:"Extintores despejados", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {sec:"Pediluvios"},
+    {k:"pediluvios", type:"repeater", full:true, addLabel:"Agregar pediluvio", title:"Estado de pediluvios por área",
+      cols:[
+        {k:"area", label:"Área", type:"select", options:["Área sucia","Área limpia","Despacho"]},
+        {k:"jabon_manos", label:"Jabón de manos", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"toalla", label:"Toalla", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"agua", label:"Agua potable manos/botas", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"jabon_botas", label:"Jabón de botas", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"lleno", label:"Pediluvio lleno", type:"select", options:["Cumple","No cumple","N/A"]},
+        {k:"limpio", label:"Pediluvio limpio", type:"select", options:["Cumple","No cumple","N/A"]}
+      ]},
+    {sec:"Verificación de cloro (12%)"},
+    {k:"cloro", type:"repeater", full:true, addLabel:"Agregar verificación", title:"Verificación de concentración de cloro",
+      cols:[
+        {k:"punto", label:"Punto", type:"select", options:["PCC 1 (diario)","Pediluvio 1 (L-J)","Pediluvio 2 (K-V)","Pediluvio 3 (M-S)"]},
+        {k:"dia", label:"Día", type:"select", options:["L","K","M","J","V","S"]},
+        {k:"resultado", label:"Resultado", type:"select", options:["Cumple","No cumple","N/A"]}
+      ]},
+    {sec:"Registros complementarios"},
+    {k:"reg_higiene", label:"Llenado R-BPM-UJ-004 (higiene del personal)", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"reg_chayote", label:"Revisión y firma R-BPM-UJ-001 (PCC desinfección chayote)", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"reg_lentes", label:"Inspección de lentes R-BPM-UJ-021 (1 vez/semana)", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {k:"reg_cuchillos", label:"Revisión cuchillos y espátulas R-BPM-UJ-022 (2 veces/semana)", type:"select", options:["Cumple","No cumple","N/A"], half:true},
+    {sec:"Cierre"},
+    {k:"observaciones", label:"Observaciones", type:"textarea", full:true},
+    {k:"firma_inspector", label:"Firma del inspector", type:"signature", full:true, nameField:"inspector"}
+  ]
 }
 ];
 
@@ -995,26 +1212,31 @@ function demoSave(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state.demo
 async function dbGetUserByName(usuario){
   if(state.demo){ return state.demoStore.users.find(u=>u.usuario.toLowerCase()===usuario.toLowerCase())||null; }
   const snap = await db.collection(COL_USERS).where("usuario","==",usuario.toLowerCase()).limit(1).get();
+  trackOps(Math.max(1,snap.size), 0);
   if(snap.empty) return null;
   const d=snap.docs[0]; return {id:d.id, ...d.data()};
 }
 async function dbListUsers(){
   if(state.demo){ return [...state.demoStore.users]; }
   const snap = await db.collection(COL_USERS).orderBy("nombre").get();
+  trackOps(Math.max(1,snap.size), 0);
   return snap.docs.map(d=>({id:d.id, ...d.data()}));
 }
 async function dbCreateUser(u){
   if(state.demo){ u.id="u_"+Date.now(); state.demoStore.users.push(u); demoSave(); return u; }
   const ref = await db.collection(COL_USERS).add(u);
+  trackOps(0, 1);
   return {id:ref.id, ...u};
 }
 async function dbUpdateUser(id, patch){
   if(state.demo){ const u=state.demoStore.users.find(x=>x.id===id); Object.assign(u,patch); demoSave(); return; }
   await db.collection(COL_USERS).doc(id).update(patch);
+  trackOps(0, 1);
 }
 async function dbDeleteUser(id){
   if(state.demo){ state.demoStore.users=state.demoStore.users.filter(x=>x.id!==id); demoSave(); return; }
   await db.collection(COL_USERS).doc(id).delete();
+  trackOps(0, 1);
 }
 /* Construye el mapa username -> nombre para la etiqueta "Creado por" */
 async function loadUserMap(){
@@ -1041,6 +1263,7 @@ async function nextConsecutivo(formCode){
     tx.set(ref,{value:nv, formCode, year}, {merge:true});
     return nv;
   });
+  trackOps(1, 1); // transacción: 1 lectura + 1 escritura
   return `${formCode}-${year}-${String(n).padStart(4,"0")}`;
 }
 
@@ -1064,6 +1287,7 @@ function visibleForUser(rec){
 async function dbListRecords(formId){
   if(state.demo){ return state.demoStore.records.filter(r=>r.formId===formId).filter(visibleForUser).sort((a,b)=>(b.consecutivo>a.consecutivo?1:-1)); }
   const snap = await db.collection(COL_RECORDS).where("formId","==",formId).get();
+  trackOps(Math.max(1,snap.size), 0);
   const arr = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser);
   arr.sort((a,b)=> (b.consecutivo||"").localeCompare(a.consecutivo||""));
   return arr;
@@ -1071,15 +1295,18 @@ async function dbListRecords(formId){
 async function dbCreateRecord(rec){
   if(state.demo){ rec.id="r_"+Date.now(); state.demoStore.records.unshift(rec); demoSave(); return rec; }
   const ref = await db.collection(COL_RECORDS).add(rec);
+  trackOps(0, 1);
   return {id:ref.id, ...rec};
 }
 async function dbUpdateRecord(id, patch){
   if(state.demo){ const r=state.demoStore.records.find(x=>x.id===id); Object.assign(r,patch); demoSave(); return; }
   await db.collection(COL_RECORDS).doc(id).update(patch);
+  trackOps(0, 1);
 }
 async function dbDeleteRecord(id){
   if(state.demo){ state.demoStore.records=state.demoStore.records.filter(x=>x.id!==id); demoSave(); return; }
   await db.collection(COL_RECORDS).doc(id).delete();
+  trackOps(0, 1);
 }
 async function dbCountByForm(){
   const byForm={}, byCompany={};
@@ -1090,6 +1317,7 @@ async function dbCountByForm(){
   };
   if(state.demo){ state.demoStore.records.filter(visibleForUser).forEach(tally); return {byForm, byCompany}; }
   const snap = await db.collection(COL_RECORDS).get();
+  trackOps(Math.max(1,snap.size), 0);
   snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser).forEach(tally);
   return {byForm, byCompany};
 }
@@ -1103,6 +1331,7 @@ function subscribeRecords(formId, onChange){
   if(state.demo) return null;
   return db.collection(COL_RECORDS).where("formId","==",formId)
     .onSnapshot(snap=>{
+      trackOps(Math.max(1,snap.size), 0);
       const arr = snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser);
       arr.sort((a,b)=> (b.consecutivo||"").localeCompare(a.consecutivo||""));
       onChange(arr);
@@ -1112,6 +1341,7 @@ function subscribeCounts(onChange){
   if(state.demo) return null;
   return db.collection(COL_RECORDS)
     .onSnapshot(snap=>{
+      trackOps(Math.max(1,snap.size), 0);
       const byForm={}, byCompany={};
       snap.docs.map(d=>({id:d.id, ...d.data()})).filter(visibleForUser).forEach(r=>{
         byForm[r.formId]=(byForm[r.formId]||0)+1;
@@ -1125,6 +1355,7 @@ function subscribeUsers(onChange){
   if(state.demo) return null;
   return db.collection(COL_USERS).orderBy("nombre")
     .onSnapshot(snap=>{
+      trackOps(Math.max(1,snap.size), 0);
       onChange(snap.docs.map(d=>({id:d.id, ...d.data()})));
     }, err=>{ console.warn("onSnapshot usuarios:", err); });
 }
@@ -1257,6 +1488,7 @@ function renderApp(){
       <button class="menu-btn" id="menuBtn">${ICON.menu}</button>
       <div class="brand-mini"><span class="dot">S</span><span>Secu<span class="x">Docs</span></span></div>
       <div class="topbar-sp"></div>
+      ${state.demo?'':'<div class="ops-counter ok" id="opsCounter" title="Operaciones de Firestore de hoy"></div>'}
       <div class="user-chip">
         <div class="meta"><b>${esc(state.user.nombre)}</b><small>${state.user.usuario}</small></div>
         <div class="av">${initials(state.user.nombre)}</div>
@@ -1307,6 +1539,7 @@ function renderApp(){
   $("#backdrop").onclick = closeSidebar;
 
   if(state.view==="users" && isAdmin) renderUsers(); else { state.view="dashboard"; renderDashboard(); }
+  renderOpsBadge();
 }
 function closeSidebar(){ $("#sidebar")?.classList.remove("open"); $("#backdrop")?.classList.remove("show"); }
 function logout(){ stopRealtime(); clearSession(); state.user=null; state.view="dashboard"; renderLogin(); }
@@ -2443,6 +2676,7 @@ function userEditor(user, onDone){
    ====================================================================== */
 async function boot(){
   if(state.demo) demoLoad();
+  opsLoad();
   let seeded=false;
   try{ seeded = await ensureSeedAdmin(); }catch(e){ console.warn("seed:",e); }
 
