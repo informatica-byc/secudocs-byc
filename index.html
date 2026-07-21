@@ -446,6 +446,7 @@ const state = {
   records: [],           // registros del formulario abierto
   view: "dashboard",
   search: "",
+  dashSearch: "",         // texto del buscador del dashboard
   demo: !FB_OK,          // modo demostración (sin Firebase configurado)
   demoStore: { users: [], records: [], counters: {} },
   userMap: {},           // username -> nombre (para etiqueta "Creado por")
@@ -1149,24 +1150,33 @@ async function renderDashboard(){
     <div class="stat-strip" id="statStrip">
       <div class="loader-wrap" style="grid-column:1/-1;padding:24px"><div class="spinner"></div><p>Cargando estadísticas…</p></div>
     </div>
+    <div class="toolbar">
+      <div class="search-box" style="max-width:100%">
+        <span class="ico">${ICON.search}</span>
+        <input id="formSearch" placeholder="Buscar formulario por nombre o código…" value="${esc(state.dashSearch||'')}">
+      </div>
+    </div>
     <div class="grid-forms fade-list" id="gridForms"></div>`;
 
   const yr = new Date().getFullYear();
+  let lastCounts = {};
 
-  const paint = (counts)=>{
-    if(state.view!=="dashboard") return;
-    const total = Object.values(counts).reduce((a,b)=>a+b,0);
-    const ss = $("#statStrip");
-    if(ss) ss.innerHTML = `
-      <div class="stat"><div class="sv">${FORMS.length}</div><div class="sl">Formularios digitalizados</div></div>
-      <div class="stat"><div class="sv">${total}</div><div class="sl">Registros totales</div></div>
-      <div class="stat"><div class="sv">${yr}</div><div class="sl">Año en curso</div></div>
-      <div class="stat"><div class="sv">${state.user.rol==='admin'?'Admin':'Seguridad'}</div><div class="sl">Tu nivel de acceso</div></div>`;
-
+  const paintCards = ()=>{
     const grid = $("#gridForms");
     if(!grid) return;
-    grid.innerHTML = FORMS.map(f=>{
-      const c = counts[f.id]||0;
+    const q = (state.dashSearch||"").toLowerCase().trim();
+    const list = FORMS.filter(f=> !q ||
+      f.title.toLowerCase().includes(q) ||
+      f.code.toLowerCase().includes(q) ||
+      (f.desc||"").toLowerCase().includes(q) ||
+      (f.empresa||"").toLowerCase().includes(q));
+
+    if(list.length===0){
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="es-ico">${ICON.search}</div><h3>Sin coincidencias</h3><p>No hay formularios que coincidan con “${esc(q)}”.</p></div>`;
+      return;
+    }
+    grid.innerHTML = list.map(f=>{
+      const c = lastCounts[f.id]||0;
       return `
       <div class="form-card" data-form="${f.id}" style="--accent:${ACCENTS[f.accent]}">
         <div class="fc-top">
@@ -1184,6 +1194,25 @@ async function renderDashboard(){
     }).join("");
     $$(".form-card").forEach(card=>{ card.onclick = ()=>openForm(card.dataset.form); });
   };
+
+  const paint = (counts)=>{
+    if(state.view!=="dashboard") return;
+    lastCounts = counts;
+    const total = Object.values(counts).reduce((a,b)=>a+b,0);
+    const ss = $("#statStrip");
+    if(ss) ss.innerHTML = `
+      <div class="stat"><div class="sv">${FORMS.length}</div><div class="sl">Formularios digitalizados</div></div>
+      <div class="stat"><div class="sv">${total}</div><div class="sl">Registros totales</div></div>
+      <div class="stat"><div class="sv">${yr}</div><div class="sl">Año en curso</div></div>
+      <div class="stat"><div class="sv">${state.user.rol==='admin'?'Admin':'Seguridad'}</div><div class="sl">Tu nivel de acceso</div></div>`;
+    paintCards();
+  };
+
+  // buscador
+  const si = $("#formSearch");
+  if(si){
+    si.addEventListener("input", e=>{ state.dashSearch = e.target.value; paintCards(); });
+  }
 
   if(state.demo){
     let counts={};
