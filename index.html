@@ -838,7 +838,8 @@ const FORMS = [
   icon:"eye", accent:"teal",
   sistema:"Sistema de Gestión y Control de la Seguridad BASC",
   fields:[
-    {k:"chk_patios", type:"checklist", sec:"Área de patios frente a planta", items:[
+    {sec:"Área de patios frente a planta"},
+    {k:"chk_patios", type:"checklist", items:[
       {n:1, label:"Casetilla de vigilancia en buenas condiciones"},
       {n:2, label:"Portón principal en buen estado y cerrado al no estar en uso"},
       {n:3, label:"Área del patio despejado de obstáculos no autorizados"},
@@ -850,20 +851,23 @@ const FORMS = [
       {n:9, label:"Video de cámara de seguridad se ve claro, completo y funcionando", hint:"Aplica para casetas de seguridad con pantallas para ver video en directo"},
       {n:10, label:"Ausencia de personas no autorizadas"}
     ]},
-    {k:"chk_recibo", type:"checklist", sec:"Área de recibo de producto", items:[
+    {sec:"Área de recibo de producto"},
+    {k:"chk_recibo", type:"checklist", items:[
       {n:1, label:"Portones principales en buen estado y cerrados si no están en uso"},
       {n:2, label:"Iluminación en buen estado", hint:"Luces funcionan cuando están en uso, sin quebrar ni piezas faltantes"},
       {n:3, label:"Candados cerrados y en buen estado"},
       {n:4, label:"Cámaras de seguridad en buen estado", hint:"Sin piezas faltantes, lente completo, despejadas"},
       {n:5, label:"Ausencia de personas no autorizadas"}
     ]},
-    {k:"chk_comedor", type:"checklist", sec:"Área de comedor", items:[
+    {sec:"Área de comedor"},
+    {k:"chk_comedor", type:"checklist", items:[
       {n:1, label:"Pasillos despejados"},
       {n:2, label:"Iluminación en buen estado", hint:"Luces funcionan cuando están en uso, sin quebrar ni piezas faltantes"},
       {n:3, label:"Cámaras de seguridad en buen estado", hint:"Sin piezas faltantes, lente completo, despejadas. Aplica para los comedores que poseen cámara"},
       {n:4, label:"Ausencia de personas no autorizadas"}
     ]},
-    {k:"chk_carga", type:"checklist", sec:"Área de carga", items:[
+    {sec:"Área de carga"},
+    {k:"chk_carga", type:"checklist", items:[
       {n:1, label:"Portón de ingreso en buen estado"},
       {n:2, label:"Área debidamente cerrada y segura"},
       {n:3, label:"Portones de andén en buen estado"},
@@ -872,7 +876,8 @@ const FORMS = [
       {n:6, label:"Cámaras de seguridad en buen estado", hint:"Sin piezas faltantes, lente completo, despejadas"},
       {n:7, label:"Ausencia de personas no autorizadas"}
     ]},
-    {k:"chk_predio", type:"checklist", sec:"Predio", items:[
+    {sec:"Predio"},
+    {k:"chk_predio", type:"checklist", items:[
       {n:1, label:"Cercas y mallas en buen estado"},
       {n:2, label:"Portones de ingreso en buen estado"},
       {n:3, label:"Candados cerrados y en buen estado"},
@@ -883,7 +888,8 @@ const FORMS = [
       {n:8, label:"Cámaras de seguridad en buen estado", hint:"Sin piezas faltantes, lente completo, despejadas"},
       {n:9, label:"Ausencia de personas no autorizadas"}
     ]},
-    {k:"chk_empaque", type:"checklist", sec:"Área de empaque (exclusiva personal de despacho)", items:[
+    {sec:"Área de empaque (exclusiva personal de despacho)"},
+    {k:"chk_empaque", type:"checklist", items:[
       {n:1, label:"Puertas de ingreso en buen estado"},
       {n:2, label:"Iluminación en buen estado", hint:"Luces funcionan cuando están en uso, sin quebrar ni piezas faltantes"},
       {n:3, label:"Luces de emergencia en buen estado", hint:"Sin quebrar / sin piezas faltantes"},
