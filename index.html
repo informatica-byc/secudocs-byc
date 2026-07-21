@@ -830,6 +830,85 @@ const FORMS = [
     {k:"hora_salida", label:"Hora de salida", type:"time", half:true, hint:"Se completa cuando el vehículo se retira"},
     {k:"firma", label:"Firma", type:"signature", full:true, nameField:"nombre"}
   ]
+},
+{
+  code:"R-SEG-INP", id:"inspeccion_perimetral", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  title:"Inspección Perimetral",
+  desc:"Frecuencia: diaria para Oficiales de Seguridad, semanal para personal del Área de Despacho.",
+  icon:"eye", accent:"teal",
+  sistema:"Sistema de Gestión y Control de la Seguridad BASC",
+  fields:[
+    {k:"chk_patios", type:"checklist", sec:"Área de patios frente a planta", items:[
+      {n:1, label:"Casetilla de vigilancia en buenas condiciones"},
+      {n:2, label:"Portón principal en buen estado y cerrado al no estar en uso"},
+      {n:3, label:"Área del patio despejado de obstáculos no autorizados"},
+      {n:4, label:"Área del patio libre de vehículos no autorizados"},
+      {n:5, label:"Barreras perimetrales en buen estado"},
+      {n:6, label:"Iluminación en buen estado", hint:"Luces funcionan cuando están en uso, sin quebrar ni piezas faltantes"},
+      {n:7, label:"Candados cerrados y en buen estado"},
+      {n:8, label:"Cámaras de seguridad en buen estado", hint:"Sin piezas faltantes, lente completo, despejadas"},
+      {n:9, label:"Video de cámara de seguridad se ve claro, completo y funcionando", hint:"Aplica para casetas de seguridad con pantallas para ver video en directo"},
+      {n:10, label:"Ausencia de personas no autorizadas"}
+    ]},
+    {k:"chk_recibo", type:"checklist", sec:"Área de recibo de producto", items:[
+      {n:1, label:"Portones principales en buen estado y cerrados si no están en uso"},
+      {n:2, label:"Iluminación en buen estado", hint:"Luces funcionan cuando están en uso, sin quebrar ni piezas faltantes"},
+      {n:3, label:"Candados cerrados y en buen estado"},
+      {n:4, label:"Cámaras de seguridad en buen estado", hint:"Sin piezas faltantes, lente completo, despejadas"},
+      {n:5, label:"Ausencia de personas no autorizadas"}
+    ]},
+    {k:"chk_comedor", type:"checklist", sec:"Área de comedor", items:[
+      {n:1, label:"Pasillos despejados"},
+      {n:2, label:"Iluminación en buen estado", hint:"Luces funcionan cuando están en uso, sin quebrar ni piezas faltantes"},
+      {n:3, label:"Cámaras de seguridad en buen estado", hint:"Sin piezas faltantes, lente completo, despejadas. Aplica para los comedores que poseen cámara"},
+      {n:4, label:"Ausencia de personas no autorizadas"}
+    ]},
+    {k:"chk_carga", type:"checklist", sec:"Área de carga", items:[
+      {n:1, label:"Portón de ingreso en buen estado"},
+      {n:2, label:"Área debidamente cerrada y segura"},
+      {n:3, label:"Portones de andén en buen estado"},
+      {n:4, label:"Candados cerrados y en buen estado"},
+      {n:5, label:"Iluminación en buen estado", hint:"Luces funcionan cuando están en uso, sin quebrar ni piezas faltantes"},
+      {n:6, label:"Cámaras de seguridad en buen estado", hint:"Sin piezas faltantes, lente completo, despejadas"},
+      {n:7, label:"Ausencia de personas no autorizadas"}
+    ]},
+    {k:"chk_predio", type:"checklist", sec:"Predio", items:[
+      {n:1, label:"Cercas y mallas en buen estado"},
+      {n:2, label:"Portones de ingreso en buen estado"},
+      {n:3, label:"Candados cerrados y en buen estado"},
+      {n:4, label:"Iluminación en buen estado", hint:"Luces funcionan cuando están en uso, sin quebrar ni piezas faltantes"},
+      {n:5, label:"Altura de cercado o muro adecuada", hint:"2,5 metros"},
+      {n:6, label:"Muro o cercado con alambre de púas u otro obstáculo"},
+      {n:7, label:"Área adyacente a las cercas despejada de escombros"},
+      {n:8, label:"Cámaras de seguridad en buen estado", hint:"Sin piezas faltantes, lente completo, despejadas"},
+      {n:9, label:"Ausencia de personas no autorizadas"}
+    ]},
+    {k:"chk_empaque", type:"checklist", sec:"Área de empaque (exclusiva personal de despacho)", items:[
+      {n:1, label:"Puertas de ingreso en buen estado"},
+      {n:2, label:"Iluminación en buen estado", hint:"Luces funcionan cuando están en uso, sin quebrar ni piezas faltantes"},
+      {n:3, label:"Luces de emergencia en buen estado", hint:"Sin quebrar / sin piezas faltantes"},
+      {n:4, label:"Candados cerrados y en buen estado"},
+      {n:5, label:"Cámaras de seguridad en buen estado", hint:"Sin piezas faltantes, lente completo, despejadas"},
+      {n:6, label:"Ausencia de personas no autorizadas"}
+    ]},
+    {sec:"Inspección"},
+    {k:"inspeccionado_por", label:"Inspección realizada por", type:"text", req:true, half:true},
+    {k:"puesto", label:"Puesto", type:"select", half:true, options:["Oficial de Seguridad","Personal de Despacho"]},
+    {sec:"Incumplimientos / Hallazgos"},
+    {k:"hallazgos", type:"repeater", full:true, addLabel:"Agregar hallazgo", title:"Detalle de incumplimientos y hallazgos",
+      cols:[
+        {k:"incumplimiento", label:"Incumplimiento / Hallazgo", type:"text"},
+        {k:"area", label:"Área", type:"text"},
+        {k:"fecha_hallazgo", label:"Fecha del hallazgo", type:"text"},
+        {k:"accion_correctiva", label:"Acción correctiva ejecutada", type:"text"},
+        {k:"fecha_ejecucion", label:"Fecha de ejecución", type:"text"},
+        {k:"encargado_ejecucion", label:"Encargado de ejecución", type:"text"}
+      ]},
+    {sec:"Seguimiento"},
+    {k:"hallazgos_semana_corregidos", label:"¿Los hallazgos de la semana anterior fueron corregidos?", type:"toggle",
+      hint:"Si no fueron corregidos, comunicar a: Jefe de cumplimiento Ujarrás (Laura Castro) · La Bruja (Alexis Acuña) · Bajo Cero (Grettel Pasos). Incumplimientos graves (puertas/candados/entradas forzadas, cámara averiada, perímetro comprometido, personas no autorizadas): comunicar de inmediato al Jefe de cumplimiento de la planta."},
+    {k:"revisado_por", label:"Revisado por", type:"text", half:true}
+  ]
 }
 ];
 
