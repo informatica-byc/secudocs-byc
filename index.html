@@ -267,6 +267,15 @@ a{color:var(--emerald);text-decoration:none}
 
 .section-title{font-family:var(--display);font-size:14px;font-weight:700;color:var(--ink-soft);margin:24px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--line);grid-column:1/-1;display:flex;align-items:center;gap:8px}
 .section-title:first-child{margin-top:0}
+.coll-section{grid-column:1/-1;display:contents}
+.coll-section .section-title{cursor:pointer;user-select:none}
+.coll-section .section-title:hover{color:var(--emerald-d)}
+.coll-section .section-title .coll-arrow{display:inline-flex;transition:transform .25s ease;flex-shrink:0}
+.coll-section.collapsed .section-title .coll-arrow{transform:rotate(-90deg)}
+.coll-section .coll-body{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;overflow:hidden;
+  max-height:4000px;opacity:1;transition:max-height .35s ease,opacity .25s ease}
+.coll-section.collapsed .coll-body{max-height:0;opacity:0;pointer-events:none;margin:0}
+@media (max-width:720px){.coll-section .coll-body{grid-template-columns:1fr}}
 
 /* Toggle Sí/No */
 .toggle-row{display:flex;gap:8px}
@@ -837,6 +846,7 @@ const FORMS = [
   desc:"Frecuencia: diaria para Oficiales de Seguridad, semanal para personal del Área de Despacho.",
   icon:"eye", accent:"teal",
   sistema:"Sistema de Gestión y Control de la Seguridad BASC",
+  collapsible:true,
   fields:[
     {sec:"Área de patios frente a planta"},
     {k:"chk_patios", type:"checklist", items:[
@@ -1563,7 +1573,7 @@ async function openEditor(form, record){
   signaturePads = {};
   const consecLabel = isNew ? "Se asignará al guardar" : record.consecutivo;
 
-  const body = form.fields.map(f=>renderField(f, data, lockField(f))).join("");
+  const body = buildFormBody(form, data, lockField);
 
   const modal = el("div","modal-bg show");
   modal.id="editorModal";
@@ -1602,6 +1612,28 @@ async function openEditor(form, record){
   modal.addEventListener("mousedown", e=>{ if(e.target===modal) close(); });
 
   $("#saveEditor").onclick = ()=>saveRecord(form, record, isNew, data, lockField, close);
+}
+
+/* ---- arma el cuerpo del formulario, agrupando en secciones contraíbles cuando el formulario lo permite ---- */
+function buildFormBody(form, data, lockField){
+  if(!form.collapsible){
+    return form.fields.map(f=>renderField(f, data, lockField(f))).join("");
+  }
+  let out = "";
+  let sec = null; // sección abierta actualmente
+  const flushSec = ()=>{ if(sec){ out += `</div></div>`; sec=null; } };
+  form.fields.forEach(f=>{
+    if(f.sec){
+      flushSec();
+      const arrowIco = ICON.arrow.replace(/width="15" height="15"/,'width="13" height="13"').replace('<svg ','<svg class="coll-arrow" ');
+      out += `<div class="coll-section"><div class="section-title" data-collsec>${arrowIco} ${esc(f.sec)}</div><div class="coll-body">`;
+      sec = true;
+    } else {
+      out += renderField(f, data, lockField(f));
+    }
+  });
+  flushSec();
+  return out;
 }
 
 /* ---- render de un campo según tipo ---- */
@@ -1699,6 +1731,11 @@ function isExpired(iso){
 
 /* ---- comportamientos: firmas, toggles, repeaters ---- */
 function initFieldBehaviors(form, data, originals, lockField){
+  // SECCIONES CONTRAÍBLES/EXPANDIBLES (clic en el título con la flecha)
+  $$("[data-collsec]").forEach(head=>{
+    head.onclick = ()=>{ head.closest(".coll-section").classList.toggle("collapsed"); };
+  });
+
   // SIGNATURE PADS
   $$(".sig-box").forEach(box=>{
     const k = box.dataset.sig;
