@@ -847,7 +847,6 @@ const FORMS = [
   desc:"Frecuencia: diaria para Oficiales de Seguridad, semanal para personal del Área de Despacho.",
   icon:"eye", accent:"teal",
   sistema:"Sistema de Gestión y Control de la Seguridad BASC",
-  collapsible:true,
   fields:[
     {sec:"Área de patios frente a planta"},
     {k:"chk_patios", type:"checklist", items:[
@@ -928,7 +927,7 @@ const FORMS = [
   ]
 },
 {
-  code:"R-BPM-UJ-004", id:"higiene_personal", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  code:"R-SEG-HIG", id:"higiene_personal", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
   title:"Verificación de Cumplimiento de Higiene del Personal",
   desc:"Frecuencia: cumplimiento de higiene 15 colaboradores/semana; revisión de locker 5 colaboradores/semana. La distribución de los días de inspección queda a discreción del inspector. Los colaboradores a quienes se les inspecciona el locker pueden ser distintos a los que se les inspecciona el resto de rubros.",
   icon:"user", accent:"gold",
@@ -1658,9 +1657,6 @@ async function openEditor(form, record){
 
 /* ---- arma el cuerpo del formulario, agrupando en secciones contraíbles cuando el formulario lo permite ---- */
 function buildFormBody(form, data, lockField){
-  if(!form.collapsible){
-    return form.fields.map(f=>renderField(f, data, lockField(f))).join("");
-  }
   let out = "";
   let sec = null; // sección abierta actualmente
   const flushSec = ()=>{ if(sec){ out += `</div></div>`; sec=null; } };
