@@ -532,7 +532,7 @@ const ICON = {
 
 <script>
 /* ======================================================================
-   ESQUEMA DE LOS 9 FORMULARIOS
+   ESQUEMA DE LOS FORMULARIOS
    Tipos de campo: text, date, time, number, textarea, select, toggle (Sí/No),
    signature (firma), repeater (sub-tabla con filas dinámicas),
    checklist (lista de aspectos con Sí/No).
@@ -808,6 +808,27 @@ const FORMS = [
     {sec:"Recepción"},
     {k:"recibe_nombre", label:"Recibe (Nombre)", type:"text", req:true, half:true},
     {k:"firma_recibe", label:"Firma de quien recibe", type:"signature", full:true, nameField:"recibe_nombre"}
+  ]
+},
+{
+  code:"R-SEG-RCD", id:"rechazo_donaciones", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  title:"Control de Rechazo y Donaciones",
+  desc:"Registro de vehículos que ingresan o retiran mercadería rechazada o en donación.",
+  icon:"box", accent:"amber",
+  sistema:"Sistema de Gestión y Control de la Seguridad BASC",
+  fields:[
+    {sec:"Datos del vehículo y responsable"},
+    {k:"fecha", label:"Fecha", type:"date", req:true, def:"today", half:true},
+    {k:"placa", label:"Placa", type:"text", req:true, half:true},
+    {k:"nombre", label:"Nombre", type:"text", req:true, full:true},
+    {sec:"Datos de la mercadería"},
+    {k:"tipo_empaque", label:"Tipo de empaque", type:"text", req:true, half:true},
+    {k:"factura", label:"No. de factura", type:"text", half:true},
+    {k:"cantidad", label:"Cantidad", type:"text", half:true},
+    {sec:"Entrada y salida"},
+    {k:"hora_entrada", label:"Hora de entrada", type:"time", def:"now", half:true},
+    {k:"hora_salida", label:"Hora de salida", type:"time", half:true, hint:"Se completa cuando el vehículo se retira"},
+    {k:"firma", label:"Firma", type:"signature", full:true, nameField:"nombre"}
   ]
 }
 ];
@@ -1155,7 +1176,7 @@ function closeSidebar(){ $("#sidebar")?.classList.remove("open"); $("#backdrop")
 function logout(){ stopRealtime(); clearSession(); state.user=null; state.view="dashboard"; renderLogin(); }
 
 /* ======================================================================
-   RENDER: DASHBOARD (tarjetas de los 9 formularios)
+   RENDER: DASHBOARD (tarjetas de los formularios)
    ====================================================================== */
 async function renderDashboard(){
   stopRealtime(); // cierra listeners de vistas anteriores
