@@ -1168,10 +1168,11 @@ async function renderDashboard(){
     <div class="stat-strip" id="statStrip">
       <div class="loader-wrap" style="grid-column:1/-1;padding:24px"><div class="spinner"></div><p>Cargando estadísticas…</p></div>
     </div>
+    ${hasFullAccess(state.user.rol)?`
     <div class="section-title">${ICON.hash?ICON.hash.replace(/width="18" height="18"/,'width="15" height="15"'):''} Registros por compañía</div>
     <div class="stat-strip" id="companyStrip">
       <div class="loader-wrap" style="grid-column:1/-1;padding:24px"><div class="spinner"></div><p>Cargando…</p></div>
-    </div>
+    </div>`:''}
     <div class="toolbar">
       <div class="search-box" style="max-width:100%">
         <span class="ico">${ICON.search}</span>
