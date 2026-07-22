@@ -248,6 +248,15 @@ a{color:var(--emerald);text-decoration:none}
 .badge-st{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px}
 .badge-st.complete{background:rgba(31,157,99,.14);color:var(--ok)}
 .badge-st.partial{background:rgba(217,138,31,.15);color:var(--warn)}
+.badge-st.active{background:rgba(29,111,184,.14);color:var(--ice-d)}
+.badge-st.out{background:rgba(91,107,99,.16);color:var(--muted-2)}
+.exit-tabs{display:inline-flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:16px}
+.exit-tab{border:none;background:transparent;font-family:var(--font);font-size:13px;font-weight:600;color:var(--ink-soft);padding:7px 16px;border-radius:9px;cursor:pointer;transition:.18s}
+.exit-tab:hover{color:var(--ink)}
+.exit-tab.active{background:var(--surface);color:var(--emerald-d);box-shadow:var(--shadow-sm)}
+.btn.xs{padding:5px 10px;font-size:12px;border-radius:9px}
+.exit-btn{white-space:nowrap}
+.exit-btn svg{width:14px;height:14px}
 
 .empty-state{text-align:center;padding:60px 24px;color:var(--muted)}
 .empty-state .es-ico{width:72px;height:72px;border-radius:20px;background:var(--surface-2);display:grid;place-items:center;margin:0 auto 18px;color:var(--muted-2)}
@@ -479,6 +488,7 @@ const state = {
   view: "dashboard",
   search: "",
   dashSearch: "",         // texto del buscador del dashboard
+  exitTab: "activas",     // pestaña activa en formularios con flujo de salida
   demo: !FB_OK,          // modo demostración (sin Firebase configurado)
   demoStore: { users: [], records: [], counters: {} },
   userMap: {},           // username -> nombre (para etiqueta "Creado por")
@@ -1182,6 +1192,29 @@ const FORMS = [
     {k:"observaciones", label:"Observaciones", type:"textarea", full:true},
     {k:"firma_inspector", label:"Firma del inspector", type:"signature", full:true, nameField:"inspector"}
   ]
+},
+{
+  code:"R-SEG-PES", id:"permiso_salida", logo:"byc", empresa:"B&C Exportadores / Bajo Cero",
+  title:"Solicitud de permiso de salida de Planta",
+  desc:"Solicitud de permiso para que un colaborador se retire de la planta durante su jornada.",
+  icon:"logout", accent:"amber",
+  sistema:"Sistema Integrado de Gestión",
+  onlyRoles:["encargado"],      // solo el rol Encargado (y admin) ve la tarjeta y crea boletas
+  securitySeesAll:true,         // el rol Seguridad ve TODOS los registros de este formulario
+  exitFlow:true,                // Seguridad/Encargado/Admin confirman la salida; filtro Activas/Ya salieron
+  fields:[
+    {sec:"Datos de la solicitud"},
+    {k:"lugar_trabajo", label:"Lugar de trabajo", type:"text", req:true, half:true},
+    {k:"colaborador", label:"Nombre del colaborador(a)", type:"text", req:true, half:true},
+    {k:"fecha", label:"Fecha", type:"date", req:true, def:"today", half:true},
+    {k:"hora_salida", label:"Hora de salida", type:"time", def:"now", req:true, half:true},
+    {k:"motivo", label:"Motivo del permiso", type:"select", req:true, half:true,
+      options:["Cita al doctor","Se retira de sus labores"]},
+    {k:"autoriza", label:"Persona que autoriza la salida", type:"text", req:true, half:true},
+    {sec:"Cierre"},
+    {k:"observaciones", label:"Observaciones", type:"textarea", full:true},
+    {k:"firma_autoriza", label:"Firma de quien autoriza", type:"signature", full:true, nameField:"autoriza"}
+  ]
 }
 ];
 
@@ -1275,12 +1308,61 @@ function hasFullAccess(rol){ return rol==="admin" || rol==="encargado"; }
 function roleLabel(rol){ return rol==="admin"?"Administrador":(rol==="encargado"?"Encargado":"Seguridad"); }
 
 /* ---- Registros ---- */
-/* Visibilidad: admin y encargado ven todos los registros; el rol "seguridad"
-   solo ve los que él mismo creó (campo creadoPor). */
+/* Visibilidad general: admin y encargado ven todos los registros; el rol
+   "seguridad" solo ve los que él mismo creó (campo creadoPor).
+   Excepción por formulario: si el formulario define securitySeesAll:true,
+   el rol "seguridad" ve TODOS los registros de ese formulario (no solo los
+   suyos). Útil para formularios que un rol crea y otro rol supervisa. */
 function visibleForUser(rec){
   if(!state.user) return false;
-  if(hasFullAccess(state.user.rol)) return true;
+  const rol = state.user.rol;
+  if(hasFullAccess(rol)) return true;
+  const form = rec.formId ? FORM_BY_ID[rec.formId] : null;
+  if(rol==="seguridad" && form && form.securitySeesAll) return true;
   return rec.creadoPor === state.user.usuario;
+}
+
+/* ¿Puede este rol ver la tarjeta del formulario y abrirlo?
+   Si el formulario define onlyRoles (arreglo), solo esos roles lo ven,
+   MÁS cualquier rol que pueda ver sus registros (p.ej. seguridad con
+   securitySeesAll). El admin siempre ve todos los formularios. */
+function canUseForm(form, rol){
+  rol = rol || (state.user && state.user.rol);
+  if(rol==="admin") return true;
+  if(Array.isArray(form.onlyRoles) && form.onlyRoles.length){
+    if(form.onlyRoles.includes(rol)) return true;
+    // seguridad puede abrir el form si tiene visibilidad total de registros
+    if(rol==="seguridad" && form.securitySeesAll) return true;
+    return false;
+  }
+  return true;
+}
+
+/* ¿Puede este rol CREAR boletas en el formulario?
+   Por defecto sí; si el formulario define onlyRoles, solo esos roles (o admin). */
+function canCreateInForm(form, rol){
+  rol = rol || (state.user && state.user.rol);
+  if(rol==="admin") return true;
+  if(Array.isArray(form.onlyRoles) && form.onlyRoles.length){
+    return form.onlyRoles.includes(rol);
+  }
+  return true;
+}
+
+/* Flujo de "marcar salida": formularios con exitFlow:true muestran a
+   Seguridad/Encargado/Admin un botón para confirmar que el colaborador
+   ya salió. Al aceptar, la boleta pasa de Activa a "Ya salió". */
+function hasExitFlow(form){ return !!(form && form.exitFlow); }
+function canMarkExit(rol){
+  rol = rol || (state.user && state.user.rol);
+  return rol==="seguridad" || rol==="encargado" || rol==="admin";
+}
+/* ¿Debe mostrarse la columna/etiqueta "Creado por" para este rol y formulario?
+   Full access (admin/encargado) siempre; y seguridad cuando el form tiene
+   securitySeesAll (ve todos los registros, necesita saber quién los creó). */
+function showsCreator(form){
+  if(hasFullAccess(state.user.rol)) return true;
+  return state.user.rol==="seguridad" && form && form.securitySeesAll;
 }
 
 async function dbListRecords(formId){
@@ -1577,7 +1659,7 @@ async function renderDashboard(){
     const grid = $("#gridForms");
     if(!grid) return;
     const q = (state.dashSearch||"").toLowerCase().trim();
-    const list = FORMS.filter(f=> !q ||
+    const list = FORMS.filter(f=> canUseForm(f, state.user.rol)).filter(f=> !q ||
       f.title.toLowerCase().includes(q) ||
       f.code.toLowerCase().includes(q) ||
       (f.desc||"").toLowerCase().includes(q) ||
@@ -1615,7 +1697,7 @@ async function renderDashboard(){
     const total = Object.values(byForm).reduce((a,b)=>a+b,0);
     const ss = $("#statStrip");
     if(ss) ss.innerHTML = `
-      <div class="stat"><div class="sv">${FORMS.length}</div><div class="sl">Formularios digitalizados</div></div>
+      <div class="stat"><div class="sv">${FORMS.filter(f=>canUseForm(f, state.user.rol)).length}</div><div class="sl">Formularios digitalizados</div></div>
       <div class="stat"><div class="sv">${total}</div><div class="sl">Registros totales</div></div>
       <div class="stat"><div class="sv">${yr}</div><div class="sl">Año en curso</div></div>
       <div class="stat"><div class="sv">${roleLabel(state.user.rol)}</div><div class="sl">Tu nivel de acceso</div></div>`;
@@ -1662,7 +1744,12 @@ async function renderDashboard(){
    ====================================================================== */
 async function openForm(formId){
   const form = FORM_BY_ID[formId];
+  if(!form || !canUseForm(form, state.user.rol)){
+    toast("No tenés acceso a este formulario","warn");
+    state.view="dashboard"; renderDashboard(); return;
+  }
   state.currentForm = form;
+  state.exitTab = "activas";
   state.view = "form:"+formId;
   const main = $("#main");
   main.innerHTML = `
@@ -1678,12 +1765,13 @@ async function openForm(formId){
         <span class="ico">${ICON.search}</span>
         <input id="recSearch" placeholder="Buscar por consecutivo, nombre, fecha…">
       </div>
-      <button class="btn solid" id="newRec">${ICON.plus} Nueva boleta</button>
+      <button class="btn solid" id="newRec"${canCreateInForm(form, state.user.rol)?'':' style="display:none"'}>${ICON.plus} Nueva boleta</button>
     </div>
     <div id="recList"><div class="loader-wrap"><div class="spinner"></div><p>Cargando registros…</p></div></div>`;
 
   $("#backDash").onclick = ()=>{ stopRealtime(); state.view="dashboard"; renderDashboard(); };
-  $("#newRec").onclick = ()=>openEditor(form, null);
+  const newRecBtn = $("#newRec");
+  if(newRecBtn) newRecBtn.onclick = ()=>{ if(canCreateInForm(form, state.user.rol)) openEditor(form, null); };
   $("#recSearch").addEventListener("input", e=>{ state.search=e.target.value.toLowerCase(); paintRecords(); });
 
   // Admin y Encargado necesitan los nombres de los creadores para la etiqueta
@@ -1722,36 +1810,55 @@ function paintRecords(){
   const cont = $("#recList");
   if(!cont) return;
   const q = state.search;
-  const rows = state.records.filter(r=>{
+  const exitFlow = hasExitFlow(form);
+
+  // Filtro por estado de salida (solo si el form usa exitFlow)
+  let base = state.records;
+  if(exitFlow){
+    const tab = state.exitTab || "activas";
+    base = state.records.filter(r=> tab==="salieron" ? !!(r.data&&r.data._salida) : !(r.data&&r.data._salida));
+  }
+
+  const rows = base.filter(r=>{
     if(!q) return true;
     const hay = JSON.stringify(r.data||{}).toLowerCase()+" "+(r.consecutivo||"").toLowerCase();
     return hay.includes(q);
   });
 
+  // Barra de pestañas Activas / Ya salieron
+  const tabsHtml = exitFlow ? `
+    <div class="exit-tabs">
+      <button class="exit-tab ${(state.exitTab||'activas')==='activas'?'active':''}" onclick="setExitTab('activas')">Activas</button>
+      <button class="exit-tab ${state.exitTab==='salieron'?'active':''}" onclick="setExitTab('salieron')">Ya salieron</button>
+    </div>` : "";
+
   if(state.records.length===0){
-    cont.innerHTML = `<div class="empty-state">
+    cont.innerHTML = tabsHtml + `<div class="empty-state">
       <div class="es-ico">${ICON.doc}</div>
       <h3>Sin registros todavía</h3>
-      <p>Creá la primera boleta de <b>${esc(form.title)}</b>. Se le asignará un consecutivo automático.</p>
-      <button class="btn solid" onclick="openEditor(FORM_BY_ID['${form.id}'],null)">${ICON.plus} Crear primera boleta</button>
+      <p>${canCreateInForm(form, state.user.rol)?`Creá la primera boleta de <b>${esc(form.title)}</b>. Se le asignará un consecutivo automático.`:`Todavía no hay boletas de <b>${esc(form.title)}</b>.`}</p>
+      ${canCreateInForm(form, state.user.rol)?`<button class="btn solid" onclick="openEditor(FORM_BY_ID['${form.id}'],null)">${ICON.plus} Crear primera boleta</button>`:''}
     </div>`;
     return;
   }
   if(rows.length===0){
-    cont.innerHTML = `<div class="empty-state"><div class="es-ico">${ICON.search}</div><h3>Sin coincidencias</h3><p>No hay registros que coincidan con “${esc(q)}”.</p></div>`;
+    const msg = q ? `No hay registros que coincidan con “${esc(q)}”.`
+                  : (exitFlow && (state.exitTab||'activas')==='activas' ? 'No hay boletas activas: todas han salido.' :
+                     exitFlow ? 'Todavía nadie ha salido.' : 'Sin registros.');
+    cont.innerHTML = tabsHtml + `<div class="empty-state"><div class="es-ico">${ICON.search}</div><h3>Sin resultados</h3><p>${msg}</p></div>`;
     return;
   }
 
-  // columnas resumen: consecutivo, fecha, 2 campos clave, responsable, estado
   const summaryKeys = pickSummaryFields(form);
-  const fullAccess = hasFullAccess(state.user.rol);
+  const showCreator = showsCreator(form);
   const canDelete = state.user.rol==="admin";
+  const showExitBtn = exitFlow && canMarkExit(state.user.rol) && (state.exitTab||'activas')==='activas';
 
-  cont.innerHTML = `<div class="table-wrap"><table class="tbl">
+  cont.innerHTML = tabsHtml + `<div class="table-wrap"><table class="tbl">
     <thead><tr>
       <th>Consecutivo</th>
       ${summaryKeys.map(k=>`<th class="${k.hideSm?'hide-sm':''}">${esc(k.label)}</th>`).join("")}
-      ${fullAccess?'<th>Creado por</th>':''}
+      ${showCreator?'<th>Creado por</th>':''}
       <th>Estado</th>
       <th style="text-align:right">Acciones</th>
     </tr></thead>
@@ -1759,12 +1866,19 @@ function paintRecords(){
       ${rows.map(r=>{
         const d=r.data||{};
         const complete = recordIsComplete(form, d);
+        const salio = !!d._salida;
+        const estadoHtml = exitFlow
+          ? (salio
+              ? `<span class="badge-st out" title="Salida confirmada por ${esc(creatorName(d._salidaPor))} · ${esc(fmtSalida(d._salidaEn))}">Ya salió</span>`
+              : `<span class="badge-st active">Activa</span>`)
+          : `<span class="badge-st ${complete?'complete':'partial'}">${complete?'Completa':'Pendiente'}</span>`;
         return `<tr>
           <td><span class="consec">${esc(r.consecutivo)}</span></td>
           ${summaryKeys.map(k=>`<td class="${k.hideSm?'hide-sm':''}">${esc(summaryValue(d, k))}</td>`).join("")}
-          ${fullAccess?`<td><span class="creator-tag" title="Creado por ${esc(creatorName(r.creadoPor))}"><span class="ct-av">${esc(initials(creatorName(r.creadoPor)))}</span>${esc(creatorName(r.creadoPor))}</span></td>`:''}
-          <td><span class="badge-st ${complete?'complete':'partial'}">${complete?'Completa':'Pendiente'}</span></td>
+          ${showCreator?`<td><span class="creator-tag" title="Creado por ${esc(creatorName(r.creadoPor))}"><span class="ct-av">${esc(initials(creatorName(r.creadoPor)))}</span>${esc(creatorName(r.creadoPor))}</span></td>`:''}
+          <td>${estadoHtml}</td>
           <td><div class="row-actions">
+            ${showExitBtn?`<button class="btn solid xs exit-btn" title="Confirmar que el colaborador ya salió" onclick="markExit('${r.id}')">${ICON.check} Aceptar salida</button>`:''}
             <button class="icon-btn view" title="Ver documento" onclick="viewRecord('${r.id}')">${ICON.eye}</button>
             <button class="icon-btn edit" title="Editar" onclick="editRecord('${r.id}')">${ICON.edit}</button>
             <button class="icon-btn pdf" title="Descargar PDF" onclick="printRecord('${r.id}')">${ICON.pdf}</button>
@@ -1775,6 +1889,47 @@ function paintRecords(){
     </tbody>
   </table></div>`;
 }
+
+/* Cambia entre Activas / Ya salieron */
+window.setExitTab = function(tab){ state.exitTab = tab; paintRecords(); };
+
+/* Formatea la marca de tiempo de salida a algo legible */
+function fmtSalida(iso){
+  if(!iso) return "—";
+  try{
+    const dt = new Date(iso);
+    const f = dt.toLocaleDateString("es-CR");
+    let h = dt.getHours(), m = String(dt.getMinutes()).padStart(2,"0");
+    const ap = h>=12?"p.m.":"a.m."; h = h%12||12;
+    return `${f} ${h}:${m} ${ap}`;
+  }catch(e){ return iso; }
+}
+
+/* Marca una boleta como "ya salió": guarda quién y cuándo, y la mueve
+   a la pestaña "Ya salieron". Disponible para seguridad/encargado/admin. */
+window.markExit = function(id){
+  const r = state.records.find(x=>x.id===id);
+  if(!r || !canMarkExit(state.user.rol)) return;
+  const modal=el("div","modal-bg show");
+  modal.innerHTML=`<div class="modal narrow"><div class="modal-body"><div class="confirm-body">
+    <div class="confirm-ico" style="background:var(--grad-emerald)">${ICON.check}</div>
+    <h3>¿Confirmar salida?</h3>
+    <p>Se registrará que <b>${esc((r.data&&r.data.colaborador)||r.consecutivo)}</b> ya salió de la planta. La boleta pasará a <b>Ya salieron</b>.</p></div></div>
+    <div class="modal-foot"><button class="btn ghost" id="mxC">Cancelar</button><button class="btn solid" id="mxO">${ICON.check} Confirmar salida</button></div></div>`;
+  document.body.appendChild(modal);
+  const close=()=>modal.remove();
+  $("#mxC").onclick=close; modal.addEventListener("mousedown",e=>{if(e.target===modal)close();});
+  $("#mxO").onclick=async()=>{
+    const b=$("#mxO"); b.disabled=true; b.innerHTML='<span class="spinner sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.4)"></span> Guardando…';
+    try{
+      const data = {...(r.data||{}), _salida:true, _salidaPor: state.user.usuario, _salidaEn: new Date().toISOString()};
+      await dbUpdateRecord(id, { data });
+      if(state.demo){ r.data = data; }
+      close(); toast("Salida confirmada","ok");
+      if(state.demo) paintRecords();
+    }catch(e){ console.error(e); b.disabled=false; b.innerHTML=`${ICON.check} Confirmar salida`; toast("Error al confirmar","err"); }
+  };
+};
 
 /* Resuelve el nombre legible de quien creó un registro (a partir del
    username guardado en creadoPor). Usa un mapa cargado de usuarios. */
