@@ -1210,10 +1210,9 @@ const FORMS = [
     {k:"hora_salida", label:"Hora de salida", type:"time", def:"now", req:true, half:true},
     {k:"motivo", label:"Motivo del permiso", type:"select", req:true, half:true,
       options:["Cita al doctor","Se retira de sus labores"]},
-    {k:"autoriza", label:"Persona que autoriza la salida", type:"text", req:true, half:true},
     {sec:"Cierre"},
     {k:"observaciones", label:"Observaciones", type:"textarea", full:true},
-    {k:"firma_autoriza", label:"Firma de quien autoriza", type:"signature", full:true, nameField:"autoriza"}
+    {k:"firma_autoriza", label:"Firma de quien autoriza", type:"signature", full:true}
   ]
 }
 ];
@@ -1853,6 +1852,9 @@ function paintRecords(){
   const showCreator = showsCreator(form);
   const canDelete = state.user.rol==="admin";
   const showExitBtn = exitFlow && canMarkExit(state.user.rol) && (state.exitTab||'activas')==='activas';
+  // El rol seguridad no edita boletas de formularios que solo consulta
+  // (aquellos donde no está autorizado a crear, como el permiso de salida).
+  const canEditRec = canCreateInForm(form, state.user.rol);
 
   cont.innerHTML = tabsHtml + `<div class="table-wrap"><table class="tbl">
     <thead><tr>
@@ -1880,7 +1882,7 @@ function paintRecords(){
           <td><div class="row-actions">
             ${showExitBtn?`<button class="btn solid xs exit-btn" title="Confirmar que el colaborador ya salió" onclick="markExit('${r.id}')">${ICON.check} Aceptar salida</button>`:''}
             <button class="icon-btn view" title="Ver documento" onclick="viewRecord('${r.id}')">${ICON.eye}</button>
-            <button class="icon-btn edit" title="Editar" onclick="editRecord('${r.id}')">${ICON.edit}</button>
+            ${canEditRec?`<button class="icon-btn edit" title="Editar" onclick="editRecord('${r.id}')">${ICON.edit}</button>`:''}
             <button class="icon-btn pdf" title="Descargar PDF" onclick="printRecord('${r.id}')">${ICON.pdf}</button>
             ${canDelete?`<button class="icon-btn del" title="Eliminar" onclick="deleteRecord('${r.id}')">${ICON.trash}</button>`:''}
           </div></td>
@@ -1961,7 +1963,7 @@ function summaryValue(d, k){
 }
 
 /* acciones globales (llamadas desde HTML inline) */
-window.editRecord = id => { const r=state.records.find(x=>x.id===id); openEditor(state.currentForm, r); };
+window.editRecord = id => { const r=state.records.find(x=>x.id===id); if(!canCreateInForm(state.currentForm, state.user.rol)){ toast("No tenés permiso para editar esta boleta","warn"); return; } openEditor(state.currentForm, r); };
 window.printRecord = id => { const r=state.records.find(x=>x.id===id); generatePDF(state.currentForm, r, "save"); };
 window.viewRecord = id => { const r=state.records.find(x=>x.id===id); generatePDF(state.currentForm, r, "view"); };
 window.deleteRecord = id => { const r=state.records.find(x=>x.id===id); confirmDelete(r); };
