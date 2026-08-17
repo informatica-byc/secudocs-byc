@@ -3352,18 +3352,21 @@ async function renderPublicBadge(codigo){
 
 /* Impresión: abre una ventana con solo el carnet a tamaño real (~5.4×8.6 cm) */
 function printBadge(b, qr){
-  const win=window.open("","_blank","width=420,height=640");
+  const win=window.open("","_blank","width=460,height=720");
   if(!win){ toast("Permití las ventanas emergentes para imprimir","warn"); return; }
+  const fotoStyle = b.foto
+    ? `background-image:url('${b.foto}');background-size:cover;background-position:center top;background-repeat:no-repeat`
+    : `background:#ddd`;
   const css=`
-    *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+    *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html,body{width:100%}
     body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#eee}
-    .carnet{width:5.4cm;height:8.6cm;background:#fff;border-radius:10px;padding:.35cm .3cm;
+    .carnet{width:5.4cm;min-height:8.6cm;background:#fff;border-radius:10px;padding:.35cm .3cm;
       display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden;
       box-shadow:0 2px 10px rgba(0,0,0,.2)}
-    .carnet-logo{width:3.4cm;object-fit:contain;margin:.1cm 0 .15cm}
-    .carnet-photo{width:2.6cm;height:3.47cm;overflow:hidden;border-radius:3px;margin-bottom:.15cm;background:#e5e5e5}
-    .carnet-photo img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
-    .carnet-photo-empty{width:100%;height:100%;background:#ddd}
+    .carnet-logo{width:3.4cm;height:auto;object-fit:contain;margin:.1cm 0 .15cm}
+    .carnet-photo{width:2.6cm;height:3.47cm;border-radius:3px;margin-bottom:.15cm;${fotoStyle}}
     .carnet-name{font-weight:bold;font-size:12pt;margin-bottom:.05cm;color:#111}
     .carnet-line{font-size:10.5pt;color:#222;line-height:1.35}
     .carnet-line.small{font-size:10pt}
@@ -3372,10 +3375,26 @@ function printBadge(b, qr){
     .carnet-code{font-size:8pt;letter-spacing:.5px;color:#333}
     .carnet-strip{position:absolute;left:0;right:0;bottom:0;height:.28cm;
       background:linear-gradient(90deg,#7ac143,#2e7d32)}
-    @media print{body{background:#fff}.carnet{box-shadow:none}}`;
+    @media print{
+      @page{margin:0}
+      body{background:#fff;min-height:auto}
+      .carnet{box-shadow:none;border-radius:0}
+    }`;
+  const cardHTML=`
+    <div class="carnet">
+      <img class="carnet-logo" src="${LOGOS.byc}" alt="B&amp;C">
+      <div class="carnet-photo"></div>
+      <div class="carnet-name">${esc(b.nombre)}</div>
+      <div class="carnet-line">Ced: ${esc(b.cedula)}</div>
+      <div class="carnet-line">${esc(b.puesto||"")}</div>
+      <div class="carnet-line small">F.Ingr: ${esc(fmtCarnetDate(b.fechaIngreso))}</div>
+      <div class="carnet-line small">F.Venc: ${esc(fmtCarnetDate(b.fechaVence))}</div>
+      <div class="carnet-qr">${qr?`<img src="${qr}" alt="QR">`:''}<span class="carnet-code">${esc(b.codigo)}</span></div>
+      <div class="carnet-strip"></div>
+    </div>`;
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Gafete ${esc(b.nombre)} - ${esc(b.cedula)}</title><style>${css}</style></head>
-    <body>${badgeCardHTML(b, qr)}
-    <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+    <body>${cardHTML}
+    <script>window.onload=function(){setTimeout(function(){window.print();},350);};<\/script>
     </body></html>`);
   win.document.close();
 }
