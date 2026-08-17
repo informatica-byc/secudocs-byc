@@ -421,6 +421,82 @@ a{color:var(--emerald);text-decoration:none}
 #bootLoader .boot-core{position:absolute;inset:0;display:grid;place-items:center}
 #bootLoader .boot-core .dot{width:48px;height:48px;border-radius:14px;background:var(--grad-emerald);display:grid;place-items:center;color:#fff;font-family:var(--display);font-weight:800;font-size:22px;box-shadow:var(--shadow)}
 #bootLoader p{font-family:var(--display);font-weight:600;color:var(--ink-soft);letter-spacing:.3px;animation:pulse 1.6s infinite}
+
+/* ===== MÓDULO DE GAFETES ===== */
+.badge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.badge-item{display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:13px;box-shadow:var(--shadow-sm);transition:.18s}
+.badge-item:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
+.bi-photo{width:52px;height:60px;flex-shrink:0;border-radius:9px;overflow:hidden;background:var(--surface-2);display:grid;place-items:center}
+.bi-photo img{width:100%;height:100%;object-fit:cover}
+.bi-noimg{color:var(--muted-2);width:26px;height:26px;display:block}
+.bi-noimg svg{width:26px;height:26px}
+.bi-info{flex:1;min-width:0}
+.bi-info b{display:block;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bi-info small{color:var(--muted);font-size:12px;display:block;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bi-meta{display:flex;gap:6px;flex-wrap:wrap}
+.bi-code{font-size:11px;font-weight:700;background:var(--emerald-l);color:var(--emerald-d);padding:2px 8px;border-radius:20px;letter-spacing:.4px}
+.bi-comp{font-size:11px;color:var(--muted-2);background:var(--surface-2);padding:2px 8px;border-radius:20px}
+.bi-actions{display:flex;gap:5px;flex-shrink:0}
+
+/* Editor */
+.modal.wide{max-width:680px}
+.badge-editor{display:grid;grid-template-columns:180px 1fr;gap:20px}
+.be-left{display:flex;flex-direction:column;gap:9px}
+.be-photo{width:180px;height:210px;border-radius:12px;overflow:hidden;background:var(--surface-2);border:2px dashed var(--line);display:grid;place-items:center}
+.be-photo img{width:100%;height:100%;object-fit:cover}
+.be-photo-empty{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted-2)}
+.be-photo-empty svg{width:40px;height:40px}
+.be-photo-empty span{font-size:12px}
+.be-right{display:flex;flex-direction:column;gap:12px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fhint{color:var(--muted);font-size:11px;margin-top:3px;display:block}
+.btn.sm{padding:7px 12px;font-size:13px}
+
+/* Escáner */
+.scan-box{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:2px solid var(--emerald);border-radius:12px;padding:12px 14px;margin:14px 0}
+.scan-box .ico{color:var(--emerald-d);display:flex}
+.scan-box .ico svg{width:22px;height:22px}
+.scan-box input{flex:1;border:none;background:transparent;font-size:16px;font-weight:600;letter-spacing:1px;color:var(--ink);outline:none;font-family:var(--font)}
+.scan-result{min-height:20px}
+.loader-wrap.sm{padding:20px}
+.scan-empty{display:flex;align-items:center;gap:12px;background:rgba(217,138,31,.08);border:1px solid rgba(217,138,31,.25);border-radius:12px;padding:14px;color:var(--warn)}
+.scan-empty svg{width:26px;height:26px;flex-shrink:0}
+.scan-empty b{display:block;color:var(--ink)}
+.scan-empty small{color:var(--muted)}
+.scan-hit{display:flex;gap:15px;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:15px}
+.sh-photo{width:80px;height:92px;flex-shrink:0;border-radius:9px;overflow:hidden;background:var(--surface);display:grid;place-items:center}
+.sh-photo img{width:100%;height:100%;object-fit:cover}
+.sh-photo span svg{width:34px;height:34px;color:var(--muted-2)}
+.sh-info{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--ink-soft)}
+.sh-info b{font-size:16px;color:var(--ink);margin-bottom:2px}
+.sh-info svg{width:13px;height:13px;vertical-align:-2px}
+.sh-comp{color:var(--emerald-d);font-weight:600}
+.sh-dates{display:flex;gap:14px;margin-top:5px;font-size:12px;color:var(--muted)}
+.scan-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+
+/* Vista previa del carnet */
+.badge-preview-wrap{display:flex;justify-content:center;padding:10px 0}
+.carnet{width:260px;background:#fff;border-radius:14px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden;box-shadow:0 8px 30px rgba(20,40,25,.18);border:1px solid #e8e8e8}
+.carnet-top{margin-bottom:6px}
+.carnet-logo{width:150px;object-fit:contain}
+.carnet-photo{width:118px;height:132px;overflow:hidden;border-radius:4px;margin:4px 0 10px;background:#e5e5e5}
+.carnet-photo img{width:100%;height:100%;object-fit:cover}
+.carnet-photo-empty{width:100%;height:100%;display:grid;place-items:center;color:#aaa}
+.carnet-photo-empty svg{width:44px;height:44px}
+.carnet-name{font-weight:800;font-size:17px;color:#111;margin-bottom:3px;line-height:1.2}
+.carnet-line{font-size:14px;color:#222;line-height:1.5}
+.carnet-line.small{font-size:13px}
+.carnet-qr{margin:10px 0 4px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.carnet-qr img{width:92px;height:92px}
+.carnet-code{font-size:11px;letter-spacing:1px;color:#444;font-weight:700}
+.carnet-strip{position:absolute;left:0;right:0;bottom:0;height:9px;background:linear-gradient(90deg,#7ac143,#2e7d32)}
+
+@media(max-width:560px){
+  .badge-editor{grid-template-columns:1fr}
+  .be-photo{width:100%;height:240px}
+  .field-row{grid-template-columns:1fr}
+}
+
 </style>
 </head>
 <body>
@@ -439,6 +515,7 @@ a{color:var(--emerald);text-decoration:none}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script>
 /* ======================================================================
@@ -472,6 +549,7 @@ const firebaseConfig = {
 const COL_USERS    = "secudocs_usuarios";
 const COL_RECORDS  = "secudocs_registros";
 const COL_COUNTERS = "secudocs_consecutivos";
+const COL_BADGES   = "secudocs_gafetes";
 
 let db = null, FB_OK = false;
 try {
@@ -626,7 +704,11 @@ const ICON = {
   leaf:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>',
   clipboard:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6M9 16h6"/></svg>',
   droplet:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>',
-  gauge:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>'
+  gauge:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>',
+  badge:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M7 18c0-2.2 2.2-3.5 5-3.5s5 1.3 5 3.5"/></svg>',
+  scan:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>',
+  camera:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  print:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>'
 };
 </script>
 
@@ -1270,6 +1352,72 @@ async function dbDeleteUser(id){
   await db.collection(COL_USERS).doc(id).delete();
   trackOps(0, 1);
 }
+
+/* ---- Gafetes / carnets ---- */
+async function dbListBadges(){
+  if(state.demo){ return [...(state.demoStore.badges||[])]; }
+  const snap = await db.collection(COL_BADGES).orderBy("nombre").get();
+  trackOps(Math.max(1,snap.size), 0);
+  return snap.docs.map(d=>({id:d.id, ...d.data()}));
+}
+async function dbGetBadgeByCode(codigo){
+  if(state.demo){ return (state.demoStore.badges||[]).find(b=>b.codigo===codigo) || null; }
+  const snap = await db.collection(COL_BADGES).where("codigo","==",codigo).limit(1).get();
+  trackOps(1, 0);
+  if(snap.empty) return null;
+  const d = snap.docs[0];
+  return {id:d.id, ...d.data()};
+}
+async function dbCreateBadge(b){
+  if(state.demo){ b.id="g_"+Date.now(); (state.demoStore.badges=state.demoStore.badges||[]).push(b); demoSave(); return b; }
+  const ref = await db.collection(COL_BADGES).add(b);
+  trackOps(0, 1);
+  return {id:ref.id, ...b};
+}
+async function dbUpdateBadge(id, patch){
+  if(state.demo){ const b=(state.demoStore.badges||[]).find(x=>x.id===id); Object.assign(b,patch); demoSave(); return; }
+  await db.collection(COL_BADGES).doc(id).update(patch);
+  trackOps(0, 1);
+}
+async function dbDeleteBadge(id){
+  if(state.demo){ state.demoStore.badges=(state.demoStore.badges||[]).filter(x=>x.id!==id); demoSave(); return; }
+  await db.collection(COL_BADGES).doc(id).delete();
+  trackOps(0, 1);
+}
+
+/* Prefijo de código interno según la compañía del gafete.
+   Cada compañía/finca tiene su propio prefijo:
+     B&C Ujarrás  -> BYCU
+     B&C La Bruja -> BYCB
+     Bajo Cero    -> BC        */
+function badgePrefix(compania){
+  const c = (compania||"").toLowerCase();
+  if(c.includes("bajo cero")) return "BC";
+  if(c.includes("bruja")) return "BYCB";
+  if(c.includes("ujarr")) return "BYCU";   // "ujarrás" / "ujarras"
+  return "BYC";   // respaldo por si aparece otra B&C sin finca definida
+}
+/* Genera el siguiente código interno (BYC-0001 / BC-0001) de forma atómica.
+   Usa la colección de consecutivos con un contador por prefijo. */
+async function nextBadgeCode(compania){
+  const prefix = badgePrefix(compania);
+  if(state.demo){
+    const list = state.demoStore.badges||[];
+    let max = 0;
+    list.forEach(b=>{ if((b.codigo||"").startsWith(prefix+"-")){ const n=parseInt(b.codigo.split("-")[1],10); if(n>max) max=n; } });
+    return `${prefix}-${String(max+1).padStart(4,"0")}`;
+  }
+  const cid = `GAFETE_${prefix}`;
+  const ref = db.collection(COL_COUNTERS).doc(cid);
+  const num = await db.runTransaction(async tx=>{
+    const doc = await tx.get(ref);
+    const next = (doc.exists ? (doc.data().n||0) : 0) + 1;
+    tx.set(ref, {n: next}, {merge:true});
+    return next;
+  });
+  trackOps(1, 1);
+  return `${prefix}-${String(num).padStart(4,"0")}`;
+}
 /* Construye el mapa username -> nombre para la etiqueta "Creado por" */
 async function loadUserMap(){
   const list = await dbListUsers();
@@ -1563,6 +1711,7 @@ function showLoginErr(m){ const b=$("#loginErr"); b.textContent=m; b.classList.a
    ====================================================================== */
 function renderApp(){
   const isAdmin = state.user.rol==="admin";
+  const canBadges = state.user.rol==="admin" || state.user.rol==="encargado";
   $("#app").innerHTML = `
   <div id="appView" class="view active">
     <div class="topbar">
@@ -1585,6 +1734,10 @@ function renderApp(){
         <button class="nav-item ${state.view==='dashboard'?'active':''}" data-nav="dashboard">
           <span class="ni-ico">${ICON.grid}</span> Formularios
         </button>
+        ${canBadges?`
+        <button class="nav-item ${state.view==='badges'?'active':''}" data-nav="badges">
+          <span class="ni-ico">${ICON.badge}</span> Gafetes / Carnets
+        </button>`:''}
         ${isAdmin?`
         <div class="sec-lbl">Administración</div>
         <button class="nav-item ${state.view==='users'?'active':''}" data-nav="users">
@@ -1612,6 +1765,7 @@ function renderApp(){
       state.view=nav;
       if(nav==="dashboard") renderDashboard();
       if(nav==="users"){ stopRealtime(); renderUsers(); }
+      if(nav==="badges"){ stopRealtime(); renderBadges(); }
       // refrescar estado activo
       $$(".nav-item[data-nav]").forEach(x=>x.classList.toggle("active", x.dataset.nav===nav && nav!=="logout"));
     };
@@ -1619,7 +1773,9 @@ function renderApp(){
   $("#menuBtn").onclick = ()=>{ $("#sidebar").classList.add("open"); $("#backdrop").classList.add("show"); };
   $("#backdrop").onclick = closeSidebar;
 
-  if(state.view==="users" && isAdmin) renderUsers(); else { state.view="dashboard"; renderDashboard(); }
+  if(state.view==="users" && isAdmin) renderUsers();
+  else if(state.view==="badges" && canBadges) renderBadges();
+  else { state.view="dashboard"; renderDashboard(); }
   renderOpsBadge();
 }
 function closeSidebar(){ $("#sidebar")?.classList.remove("open"); $("#backdrop")?.classList.remove("show"); }
@@ -2770,6 +2926,361 @@ async function renderUsers(){
     if(!state.unsub.users){ try{ users=await dbListUsers(); }catch(e){} paint(); }
   }
 }
+
+/* ======================================================================
+   MÓDULO DE GAFETES / CARNETS
+   - Lista de gafetes con buscador y escáner por código QR
+   - Editor con carga de foto, datos del carnet y código interno auto-generado
+   - Vista de gafete tal cual el carnet físico, con QR
+   - Impresión del gafete
+   Acceso: Admin y Encargado.
+   ====================================================================== */
+
+function canManageBadges(){ return state.user.rol==="admin" || state.user.rol==="encargado"; }
+
+/* Compañías disponibles para el gafete (mismas que en los formularios) */
+const BADGE_COMPANIES = ["B&C Ujarrás","B&C La Bruja","Bajo Cero"];
+
+/* Genera el dataURL de un QR usando la librería qrcodejs (que trabaja sobre un
+   nodo del DOM). Creamos un contenedor temporal, generamos y extraemos la imagen. */
+function makeQRDataURL(text, size){
+  size = size || 220;
+  return new Promise((resolve)=>{
+    try{
+      const holder = document.createElement("div");
+      holder.style.position="fixed"; holder.style.left="-9999px"; holder.style.top="-9999px";
+      document.body.appendChild(holder);
+      /* eslint-disable no-undef */
+      new QRCode(holder, { text:text, width:size, height:size, correctLevel: QRCode.CorrectLevel.M });
+      /* eslint-enable no-undef */
+      setTimeout(()=>{
+        let data="";
+        const img = holder.querySelector("img");
+        const canvas = holder.querySelector("canvas");
+        if(img && img.src){ data = img.src; }
+        else if(canvas){ try{ data = canvas.toDataURL("image/png"); }catch(e){ data=""; } }
+        holder.remove();
+        resolve(data);
+      }, 60);
+    }catch(e){ console.error("QR error", e); resolve(""); }
+  });
+}
+
+/* ---------- Vista principal: lista + escáner ---------- */
+async function renderBadges(){
+  if(!canManageBadges()){ state.view="dashboard"; renderDashboard(); return; }
+  stopRealtime();
+  const main=$("#main");
+  main.innerHTML=`
+    <div class="page-head">
+      <h2>Gafetes / Carnets</h2>
+      <p>Creá y administrá los carnets de los colaboradores. Cada gafete recibe un <b>código interno</b> con el prefijo de su compañía (BYC / BC) y un <b>código QR</b> que se puede escanear con cualquier celular para cargar la información.</p>
+    </div>
+    <div class="toolbar">
+      <div class="search-box"><span class="ico">${ICON.search}</span><input id="badgeSearch" placeholder="Buscar por nombre, cédula o código…"></div>
+      <button class="btn ghost" id="scanBadge">${ICON.scan} Buscar por código</button>
+      <button class="btn solid" id="newBadge">${ICON.plus} Nuevo gafete</button>
+    </div>
+    <div id="badgeList"><div class="loader-wrap"><div class="spinner"></div><p>Cargando gafetes…</p></div></div>`;
+
+  $("#newBadge").onclick=()=>badgeEditor(null);
+  $("#scanBadge").onclick=()=>badgeScanner();
+
+  let badges=[];
+  let query="";
+
+  const paint=()=>{
+    if(state.view!=="badges") return;
+    const list=$("#badgeList");
+    if(!list) return;
+    const f=badges.filter(b=>!query ||
+      (b.nombre+" "+b.cedula+" "+b.codigo+" "+(b.puesto||"")+" "+(b.compania||"")).toLowerCase().includes(query));
+    if(badges.length===0){
+      list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.badge}</div><h3>Sin gafetes todavía</h3><p>Creá el primer carnet de un colaborador.</p><button class="btn solid" onclick="badgeEditor(null)">${ICON.plus} Nuevo gafete</button></div>`;
+      return;
+    }
+    if(f.length===0){ list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.search}</div><h3>Sin coincidencias</h3><p>No hay gafetes que coincidan con “${esc(query)}”.</p></div>`; return; }
+    list.innerHTML=`<div class="badge-grid">`+f.map(b=>`
+      <div class="badge-item">
+        <div class="bi-photo">${b.foto?`<img src="${b.foto}" alt="">`:`<span class="bi-noimg">${ICON.user}</span>`}</div>
+        <div class="bi-info">
+          <b>${esc(b.nombre)}</b>
+          <small>${esc(b.puesto||"—")}</small>
+          <div class="bi-meta">
+            <span class="bi-code">${esc(b.codigo)}</span>
+            <span class="bi-comp">${esc(b.compania||"")}</span>
+          </div>
+        </div>
+        <div class="bi-actions">
+          <button class="icon-btn view" title="Ver / imprimir gafete" onclick="badgeView('${b.id}')">${ICON.eye}</button>
+          <button class="icon-btn edit" title="Editar" onclick="badgeEdit('${b.id}')">${ICON.edit}</button>
+          <button class="icon-btn del" title="Eliminar" onclick="badgeDel('${b.id}')">${ICON.trash}</button>
+        </div>
+      </div>`).join("")+`</div>`;
+  };
+
+  $("#badgeSearch").addEventListener("input",e=>{ query=e.target.value.toLowerCase(); paint(); });
+
+  // acciones sobre el array vivo
+  window.badgeEdit=id=>badgeEditor(badges.find(b=>b.id===id));
+  window.badgeView=id=>badgeView(badges.find(b=>b.id===id));
+  window.badgeDel=id=>{
+    const b=badges.find(x=>x.id===id);
+    const modal=el("div","modal-bg show");
+    modal.innerHTML=`<div class="modal narrow"><div class="modal-body"><div class="confirm-body">
+      <div class="confirm-ico">${ICON.trash}</div><h3>¿Eliminar gafete?</h3>
+      <p>Se eliminará el carnet de <b>${esc(b.nombre)}</b> (${esc(b.codigo)}).</p></div></div>
+      <div class="modal-foot"><button class="btn ghost" id="bdC">Cancelar</button><button class="btn danger" id="bdO">Eliminar</button></div></div>`;
+    document.body.appendChild(modal);
+    const close=()=>modal.remove();
+    $("#bdC").onclick=close; modal.addEventListener("mousedown",e=>{if(e.target===modal)close();});
+    $("#bdO").onclick=async()=>{
+      const btn=$("#bdO"); btn.disabled=true; btn.innerHTML='<span class="spinner sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.4)"></span> Eliminando…';
+      try{ await dbDeleteBadge(id); close(); toast("Gafete eliminado","ok"); badges=badges.filter(x=>x.id!==id); paint(); }
+      catch(e){ btn.disabled=false; btn.textContent="Eliminar"; toast("Error al eliminar","err"); }
+    };
+  };
+
+  // el módulo refresca su lista al volver del editor
+  window._reloadBadges=async()=>{ try{ badges=await dbListBadges(); }catch(e){} paint(); };
+
+  try{ badges=await dbListBadges(); }catch(e){ console.error(e); }
+  paint();
+}
+
+/* ---------- Escáner / búsqueda por código ---------- */
+function badgeScanner(){
+  const modal=el("div","modal-bg show");
+  modal.innerHTML=`<div class="modal narrow"><div class="modal-head"><h3>${ICON.scan} Buscar gafete por código</h3><button class="icon-btn" id="scX">${ICON.close}</button></div>
+    <div class="modal-body">
+      <p class="hint">Escaneá el código QR del gafete con un lector, o escribí el código interno (ej. <b>BYC-0001</b>) y presioná Enter. El lector actúa como teclado.</p>
+      <div class="scan-box"><span class="ico">${ICON.scan}</span><input id="scanInput" placeholder="Código del gafete…" autocomplete="off"></div>
+      <div id="scanResult" class="scan-result"></div>
+    </div></div>`;
+  document.body.appendChild(modal);
+  const close=()=>modal.remove();
+  $("#scX").onclick=close; modal.addEventListener("mousedown",e=>{if(e.target===modal)close();});
+  const input=$("#scanInput"); input.focus();
+
+  const doLookup=async()=>{
+    const code=(input.value||"").trim().toUpperCase();
+    if(!code) return;
+    const box=$("#scanResult");
+    box.innerHTML=`<div class="loader-wrap sm"><div class="spinner"></div><p>Buscando ${esc(code)}…</p></div>`;
+    let b=null;
+    try{ b=await dbGetBadgeByCode(code); }catch(e){ console.error(e); }
+    if(!b){
+      box.innerHTML=`<div class="scan-empty">${ICON.warn}<div><b>Sin resultados</b><small>No se encontró ningún gafete con el código <b>${esc(code)}</b>.</small></div></div>`;
+      input.select();
+      return;
+    }
+    box.innerHTML=`
+      <div class="scan-hit">
+        <div class="sh-photo">${b.foto?`<img src="${b.foto}">`:`<span>${ICON.user}</span>`}</div>
+        <div class="sh-info">
+          <b>${esc(b.nombre)}</b>
+          <span>${ICON.hash} ${esc(b.codigo)}</span>
+          <span>Cédula: ${esc(b.cedula)}</span>
+          <span>${esc(b.puesto||"—")}</span>
+          <span class="sh-comp">${esc(b.compania||"")}</span>
+          <div class="sh-dates"><span>Ingreso: <b>${esc(b.fechaIngreso||"—")}</b></span><span>Vence: <b>${esc(b.fechaVence||"—")}</b></span></div>
+        </div>
+      </div>
+      <div class="scan-foot"><button class="btn ghost" onclick="badgeView('${b.id}')">${ICON.eye} Ver gafete</button><button class="btn solid" onclick="badgeEditor(window.__lastScan)">${ICON.edit} Editar</button></div>`;
+    window.__lastScan=b;
+    input.select();
+  };
+
+  input.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); doLookup(); } });
+}
+
+/* ---------- Editor de gafete ---------- */
+async function badgeEditor(badge){
+  if(!canManageBadges()) return;
+  const isNew=!badge;
+  const b=badge?{...badge}:{nombre:"",cedula:"",puesto:"",compania:"B&C Ujarrás",fechaIngreso:todayISO(),fechaVence:"",foto:"",codigo:""};
+  const modal=el("div","modal-bg show");
+  modal.innerHTML=`<div class="modal wide"><div class="modal-head">
+      <h3>${ICON.badge} ${isNew?"Nuevo gafete":"Editar gafete"}</h3>
+      <button class="icon-btn" id="beX">${ICON.close}</button>
+    </div>
+    <div class="modal-body">
+      <div class="badge-editor">
+        <div class="be-left">
+          <div class="be-photo" id="bePhoto">
+            ${b.foto?`<img src="${b.foto}" id="bePhotoImg">`:`<div class="be-photo-empty">${ICON.camera}<span>Sin foto</span></div>`}
+          </div>
+          <label class="btn ghost sm" style="width:100%;justify-content:center">
+            ${ICON.camera} ${b.foto?"Cambiar foto":"Cargar foto"}
+            <input type="file" id="bePhotoInput" accept="image/*" style="display:none">
+          </label>
+          ${b.foto?`<button class="btn ghost sm" id="beRemovePhoto" style="width:100%;justify-content:center;color:var(--danger)">${ICON.trash} Quitar foto</button>`:''}
+        </div>
+        <div class="be-right">
+          <div class="field"><label>Nombre completo *</label><input id="beNombre" value="${esc(b.nombre)}" placeholder="Nombre y apellidos"></div>
+          <div class="field-row">
+            <div class="field"><label>Cédula *</label><input id="beCedula" value="${esc(b.cedula)}" placeholder="Ej. 304400086"></div>
+            <div class="field"><label>Compañía *</label><select id="beCompania">${BADGE_COMPANIES.map(c=>`<option ${c===b.compania?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
+          </div>
+          <div class="field"><label>Puesto *</label><input id="bePuesto" value="${esc(b.puesto)}" placeholder="Ej. Consultor Soporte TI"></div>
+          <div class="field-row">
+            <div class="field"><label>Fecha de ingreso</label><input type="date" id="beIngreso" value="${esc(b.fechaIngreso||"")}"></div>
+            <div class="field"><label>Fecha de vencimiento</label><input type="date" id="beVence" value="${esc(b.fechaVence||"")}"></div>
+          </div>
+          <div class="field">
+            <label>Código interno</label>
+            <input id="beCodigo" value="${esc(b.codigo)}" placeholder="${isNew?"Se genera automáticamente al guardar":""}" ${isNew?"disabled":""}>
+            <small class="fhint">${isNew?"El código se asigna solo, según la compañía (BYC-0001 / BC-0001).":"Código fijo; no se modifica."}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="beCancel">Cancelar</button>
+      <button class="btn solid" id="beSave">${ICON.check} ${isNew?"Crear gafete":"Guardar cambios"}</button>
+    </div></div>`;
+  document.body.appendChild(modal);
+  const close=()=>modal.remove();
+  $("#beX").onclick=close; $("#beCancel").onclick=close;
+  modal.addEventListener("mousedown",e=>{if(e.target===modal)close();});
+
+  // carga de foto (redimensionada para no inflar Firestore)
+  let fotoData=b.foto||"";
+  $("#bePhotoInput").addEventListener("change",e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        // recorte tipo retrato 3:4, máx 480px de alto
+        const targetH=480, targetW=360;
+        const canvas=document.createElement("canvas");
+        canvas.width=targetW; canvas.height=targetH;
+        const ctx=canvas.getContext("2d");
+        // cubrir manteniendo proporción (object-fit: cover)
+        const scale=Math.max(targetW/img.width, targetH/img.height);
+        const w=img.width*scale, h=img.height*scale;
+        ctx.drawImage(img,(targetW-w)/2,(targetH-h)/2,w,h);
+        fotoData=canvas.toDataURL("image/jpeg",0.82);
+        $("#bePhoto").innerHTML=`<img src="${fotoData}" id="bePhotoImg">`;
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  const removeBtn=$("#beRemovePhoto");
+  if(removeBtn) removeBtn.onclick=()=>{ fotoData=""; $("#bePhoto").innerHTML=`<div class="be-photo-empty">${ICON.camera}<span>Sin foto</span></div>`; };
+
+  $("#beSave").onclick=async()=>{
+    const nombre=$("#beNombre").value.trim();
+    const cedula=$("#beCedula").value.trim();
+    const puesto=$("#bePuesto").value.trim();
+    const compania=$("#beCompania").value;
+    const fechaIngreso=$("#beIngreso").value;
+    const fechaVence=$("#beVence").value;
+    if(!nombre||!cedula||!puesto){ toast("Completá nombre, cédula y puesto","warn"); return; }
+
+    const btn=$("#beSave"); btn.disabled=true; btn.innerHTML='<span class="spinner sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.4)"></span> Guardando…';
+    try{
+      if(isNew){
+        const codigo=await nextBadgeCode(compania);
+        const nb={nombre,cedula,puesto,compania,fechaIngreso,fechaVence,foto:fotoData,codigo,
+                  creadoPor:state.user.usuario, creadoEn:new Date().toISOString()};
+        const saved=await dbCreateBadge(nb);
+        close(); toast(`Gafete creado: ${codigo}`,"ok");
+        if(window._reloadBadges) await window._reloadBadges();
+        badgeView(saved);
+      } else {
+        const patch={nombre,cedula,puesto,compania,fechaIngreso,fechaVence,foto:fotoData};
+        await dbUpdateBadge(b.id,patch);
+        close(); toast("Gafete actualizado","ok");
+        if(window._reloadBadges) await window._reloadBadges();
+      }
+    }catch(e){ console.error(e); btn.disabled=false; btn.innerHTML=`${ICON.check} ${isNew?"Crear gafete":"Guardar cambios"}`; toast("Error al guardar","err"); }
+  };
+}
+
+/* ---------- Vista del gafete (carnet) con QR + impresión ---------- */
+async function badgeView(badge){
+  if(typeof badge==="string"){ try{ badge=(await dbListBadges()).find(x=>x.id===badge); }catch(e){} }
+  if(!badge) return;
+  const qr=await makeQRDataURL(badge.codigo, 240);
+  const modal=el("div","modal-bg show");
+  modal.innerHTML=`<div class="modal"><div class="modal-head">
+      <h3>${ICON.badge} Gafete de ${esc(badge.nombre)}</h3>
+      <button class="icon-btn" id="bvX">${ICON.close}</button>
+    </div>
+    <div class="modal-body">
+      <div class="badge-preview-wrap">
+        ${badgeCardHTML(badge, qr)}
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="bvClose">Cerrar</button>
+      <button class="btn solid" id="bvPrint">${ICON.print} Imprimir gafete</button>
+    </div></div>`;
+  document.body.appendChild(modal);
+  const close=()=>modal.remove();
+  $("#bvX").onclick=close; $("#bvClose").onclick=close;
+  modal.addEventListener("mousedown",e=>{if(e.target===modal)close();});
+  $("#bvPrint").onclick=()=>printBadge(badge, qr);
+}
+
+/* HTML del carnet, replicando el diseño físico (logo, foto, datos, franja, QR) */
+function badgeCardHTML(b, qr){
+  return `
+  <div class="carnet" id="carnetCard">
+    <div class="carnet-top">
+      <img class="carnet-logo" src="${LOGOS.byc}" alt="B&amp;C">
+    </div>
+    <div class="carnet-photo">${b.foto?`<img src="${b.foto}">`:`<div class="carnet-photo-empty">${ICON.user}</div>`}</div>
+    <div class="carnet-name">${esc(b.nombre)}</div>
+    <div class="carnet-line">Ced: ${esc(b.cedula)}</div>
+    <div class="carnet-line">${esc(b.puesto||"")}</div>
+    <div class="carnet-line small">F.Ingr: ${esc(fmtCarnetDate(b.fechaIngreso))}</div>
+    <div class="carnet-line small">F.Venc: ${esc(fmtCarnetDate(b.fechaVence))}</div>
+    <div class="carnet-qr">${qr?`<img src="${qr}" alt="QR">`:''}<span class="carnet-code">${esc(b.codigo)}</span></div>
+    <div class="carnet-strip"></div>
+  </div>`;
+}
+
+function fmtCarnetDate(iso){
+  if(!iso) return "—";
+  const p=iso.split("-"); // yyyy-mm-dd
+  if(p.length===3) return `${p[2]}-${p[1]}-${p[0]}`;
+  return iso;
+}
+
+/* Impresión: abre una ventana con solo el carnet a tamaño real (~5.4×8.6 cm) */
+function printBadge(b, qr){
+  const win=window.open("","_blank","width=420,height=640");
+  if(!win){ toast("Permití las ventanas emergentes para imprimir","warn"); return; }
+  const css=`
+    *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+    body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#eee}
+    .carnet{width:5.4cm;height:8.6cm;background:#fff;border-radius:10px;padding:.35cm .3cm;
+      display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden;
+      box-shadow:0 2px 10px rgba(0,0,0,.2)}
+    .carnet-logo{width:3.4cm;object-fit:contain;margin:.1cm 0 .15cm}
+    .carnet-photo{width:2.6cm;height:2.9cm;overflow:hidden;border-radius:3px;margin-bottom:.15cm}
+    .carnet-photo img{width:100%;height:100%;object-fit:cover}
+    .carnet-photo-empty{width:100%;height:100%;background:#ddd}
+    .carnet-name{font-weight:bold;font-size:12pt;margin-bottom:.05cm;color:#111}
+    .carnet-line{font-size:10.5pt;color:#222;line-height:1.35}
+    .carnet-line.small{font-size:10pt}
+    .carnet-qr{margin-top:.15cm;display:flex;flex-direction:column;align-items:center;gap:2px}
+    .carnet-qr img{width:1.9cm;height:1.9cm}
+    .carnet-code{font-size:8pt;letter-spacing:.5px;color:#333}
+    .carnet-strip{position:absolute;left:0;right:0;bottom:0;height:.28cm;
+      background:linear-gradient(90deg,#7ac143,#2e7d32)}
+    @media print{body{background:#fff}.carnet{box-shadow:none}}`;
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Gafete ${esc(b.codigo)}</title><style>${css}</style></head>
+    <body>${badgeCardHTML(b, qr)}
+    <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
+    </body></html>`);
+  win.document.close();
+}
+
 
 function userEditor(user, onDone){
   const isNew=!user;
