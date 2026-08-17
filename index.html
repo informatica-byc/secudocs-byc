@@ -457,6 +457,12 @@ a{color:var(--emerald);text-decoration:none}
 .scan-box .ico{color:var(--emerald-d);display:flex}
 .scan-box .ico svg{width:22px;height:22px}
 .scan-box input{flex:1;border:none;background:transparent;font-size:16px;font-weight:600;letter-spacing:1px;color:var(--ink);outline:none;font-family:var(--font)}
+.scan-cam-ico{flex-shrink:0;border:none;background:var(--emerald);color:#fff;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;cursor:pointer;transition:.16s;padding:0}
+.scan-cam-ico:hover{background:var(--emerald-d);transform:translateY(-1px)}
+.scan-cam-ico:active{transform:translateY(0)}
+.scan-cam-ico svg{width:22px;height:22px}
+.scan-box.big .scan-cam-ico{width:46px;height:46px}
+.scan-box.big .scan-cam-ico svg{width:24px;height:24px}
 .scan-result{min-height:20px}
 .loader-wrap.sm{padding:20px}
 .scan-empty{display:flex;align-items:center;gap:12px;background:rgba(217,138,31,.08);border:1px solid rgba(217,138,31,.25);border-radius:12px;padding:14px;color:var(--warn)}
@@ -3179,8 +3185,11 @@ function renderVerifyBadge(){
     </div>
     <div class="verify-tool">
       <div class="scan-row">
-        <div class="scan-box big"><span class="ico">${ICON.scan}</span><input id="vbInput" placeholder="Código del gafete…" autocomplete="off" autofocus></div>
-        <button class="btn solid vb-cam-btn" id="vbCamBtn">${ICON.camera} Escanear con cámara</button>
+        <div class="scan-box big">
+          <span class="ico">${ICON.scan}</span>
+          <input id="vbInput" placeholder="Código del gafete…" autocomplete="off" autofocus>
+          <button class="scan-cam-ico" id="vbCamBtn" title="Escanear con cámara" aria-label="Escanear con cámara">${ICON.camera}</button>
+        </div>
       </div>
       <div id="vbCamWrap" class="vb-cam-wrap" style="display:none">
         <video id="vbVideo" playsinline muted></video>
