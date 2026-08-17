@@ -479,8 +479,8 @@ a{color:var(--emerald);text-decoration:none}
 .carnet{width:260px;background:#fff;border-radius:14px;padding:16px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden;box-shadow:0 8px 30px rgba(20,40,25,.18);border:1px solid #e8e8e8}
 .carnet-top{margin-bottom:6px}
 .carnet-logo{width:150px;object-fit:contain}
-.carnet-photo{width:118px;height:132px;overflow:hidden;border-radius:4px;margin:4px 0 10px;background:#e5e5e5}
-.carnet-photo img{width:100%;height:100%;object-fit:cover}
+.carnet-photo{width:118px;height:157px;overflow:hidden;border-radius:4px;margin:4px 0 10px;background:#e5e5e5}
+.carnet-photo img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
 .carnet-photo-empty{width:100%;height:100%;display:grid;place-items:center;color:#aaa}
 .carnet-photo-empty svg{width:44px;height:44px}
 .carnet-name{font-weight:800;font-size:17px;color:#111;margin-bottom:3px;line-height:1.2}
@@ -490,6 +490,30 @@ a{color:var(--emerald);text-decoration:none}
 .carnet-qr img{width:92px;height:92px}
 .carnet-code{font-size:11px;letter-spacing:1px;color:#444;font-weight:700}
 .carnet-strip{position:absolute;left:0;right:0;bottom:0;height:9px;background:linear-gradient(90deg,#7ac143,#2e7d32)}
+
+/* Vista pública de verificación (al escanear el QR) */
+.verify-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,#eef4ef,#e3efe6)}
+.verify-card{width:100%;max-width:360px;background:#fff;border-radius:22px;box-shadow:0 12px 40px rgba(20,50,30,.16);padding:26px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
+.verify-head{margin-bottom:6px}
+.verify-logo{width:170px;object-fit:contain}
+.verify-photo{width:150px;height:200px;border-radius:12px;overflow:hidden;background:#e9e9e9;margin:6px 0 12px;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.verify-photo img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
+.verify-photo-empty{width:100%;height:100%;display:grid;place-items:center;color:#bbb}
+.verify-photo-empty svg{width:54px;height:54px}
+.verify-name{font-size:21px;font-weight:800;color:#12251a;line-height:1.2}
+.verify-puesto{font-size:14px;color:#5a6b61;margin-bottom:8px}
+.verify-meta{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+.verify-code{font-size:13px;font-weight:800;letter-spacing:.6px;background:var(--emerald-l);color:var(--emerald-d);padding:4px 12px;border-radius:20px}
+.verify-comp{font-size:13px;color:#5a6b61;background:#f0f3f1;padding:4px 12px;border-radius:20px}
+.verify-status{display:flex;align-items:center;gap:11px;width:100%;padding:12px 14px;border-radius:14px;text-align:left;margin-bottom:6px}
+.verify-status svg{width:26px;height:26px;flex-shrink:0}
+.verify-status b{display:block;font-size:15px}
+.verify-status span{font-size:12.5px;opacity:.85}
+.verify-status.ok{background:rgba(31,157,99,.12);color:#177a4d}
+.verify-status.invalid{background:rgba(192,57,43,.1);color:#b23b2e}
+.verify-qr{margin-top:8px}
+.verify-qr img{width:110px;height:110px}
+.verify-foot{font-size:11px;color:#9aa8a0;margin-top:12px;letter-spacing:.3px}
 
 @media(max-width:560px){
   .badge-editor{grid-template-columns:1fr}
@@ -3222,7 +3246,7 @@ async function badgeEditor(badge){
 async function badgeView(badge){
   if(typeof badge==="string"){ try{ badge=(await dbListBadges()).find(x=>x.id===badge); }catch(e){} }
   if(!badge) return;
-  const qr=makeQRDataURL(badge.codigo, 240);
+  const qr=makeQRDataURL(badgeVerifyURL(badge.codigo), 240);
   const modal=el("div","modal-bg show");
   modal.innerHTML=`<div class="modal"><div class="modal-head">
       <h3>${ICON.badge} Gafete de ${esc(badge.nombre)}</h3>
@@ -3269,6 +3293,63 @@ function fmtCarnetDate(iso){
   return iso;
 }
 
+/* URL pública de verificación del gafete. Apunta a la misma página del sistema
+   con el parámetro ?gafete=CODIGO, para que al escanear el QR con cualquier
+   celular se abra la ficha del carnet. */
+function badgeVerifyURL(codigo){
+  const base = location.origin + location.pathname;
+  return base + "?gafete=" + encodeURIComponent(codigo);
+}
+
+/* ¿El gafete está vigente según su fecha de vencimiento? */
+function badgeVigente(b){
+  if(!b.fechaVence) return null; // sin fecha => no se evalúa
+  const hoy = todayISO();
+  return b.fechaVence >= hoy;
+}
+
+/* Vista PÚBLICA de verificación: se muestra al abrir ?gafete=CODIGO (al escanear
+   el QR con el celular). No requiere login; muestra solo datos de verificación. */
+async function renderPublicBadge(codigo){
+  const boot=$("#bootLoader");
+  if(boot){ boot.classList.add("hide"); setTimeout(()=>boot.remove(),400); }
+  const app=$("#app");
+  app.innerHTML=`<div class="verify-screen"><div class="verify-card"><div class="loader-wrap"><div class="spinner"></div><p>Verificando gafete…</p></div></div></div>`;
+
+  let b=null;
+  try{ b=await dbGetBadgeByCode((codigo||"").toUpperCase()); }catch(e){ console.error(e); }
+
+  const wrap=$(".verify-card");
+  if(!b){
+    wrap.innerHTML=`
+      <div class="verify-head"><img src="${LOGOS.byc}" class="verify-logo"></div>
+      <div class="verify-status invalid">${ICON.warn}<div><b>Gafete no encontrado</b><span>El código <b>${esc(codigo)}</b> no corresponde a ningún carnet registrado.</span></div></div>
+      <a class="btn ghost" href="${location.origin+location.pathname}" style="justify-content:center">Ir al sistema</a>`;
+    return;
+  }
+
+  const vig = badgeVigente(b);
+  const qr = makeQRDataURL(badgeVerifyURL(b.codigo), 200);
+  const statusHtml = vig===null
+    ? ""
+    : (vig
+        ? `<div class="verify-status ok">${ICON.check}<div><b>Carnet vigente</b><span>Válido hasta ${esc(fmtCarnetDate(b.fechaVence))}</span></div></div>`
+        : `<div class="verify-status invalid">${ICON.warn}<div><b>Carnet vencido</b><span>Venció el ${esc(fmtCarnetDate(b.fechaVence))}</span></div></div>`);
+
+  wrap.innerHTML=`
+    <div class="verify-head"><img src="${LOGOS.byc}" class="verify-logo"></div>
+    <div class="verify-photo">${b.foto?`<img src="${b.foto}">`:`<div class="verify-photo-empty">${ICON.user}</div>`}</div>
+    <div class="verify-name">${esc(b.nombre)}</div>
+    <div class="verify-puesto">${esc(b.puesto||"")}</div>
+    <div class="verify-meta">
+      <span class="verify-code">${esc(b.codigo)}</span>
+      <span class="verify-comp">${esc(b.compania||"")}</span>
+    </div>
+    ${statusHtml}
+    <div class="verify-qr">${qr?`<img src="${qr}">`:''}</div>
+    <div class="verify-foot">Verificación de identificación · B&amp;C Exportadores</div>`;
+}
+
 /* Impresión: abre una ventana con solo el carnet a tamaño real (~5.4×8.6 cm) */
 function printBadge(b, qr){
   const win=window.open("","_blank","width=420,height=640");
@@ -3280,8 +3361,8 @@ function printBadge(b, qr){
       display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden;
       box-shadow:0 2px 10px rgba(0,0,0,.2)}
     .carnet-logo{width:3.4cm;object-fit:contain;margin:.1cm 0 .15cm}
-    .carnet-photo{width:2.6cm;height:2.9cm;overflow:hidden;border-radius:3px;margin-bottom:.15cm}
-    .carnet-photo img{width:100%;height:100%;object-fit:cover}
+    .carnet-photo{width:2.6cm;height:3.47cm;overflow:hidden;border-radius:3px;margin-bottom:.15cm;background:#e5e5e5}
+    .carnet-photo img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
     .carnet-photo-empty{width:100%;height:100%;background:#ddd}
     .carnet-name{font-weight:bold;font-size:12pt;margin-bottom:.05cm;color:#111}
     .carnet-line{font-size:10.5pt;color:#222;line-height:1.35}
@@ -3292,7 +3373,7 @@ function printBadge(b, qr){
     .carnet-strip{position:absolute;left:0;right:0;bottom:0;height:.28cm;
       background:linear-gradient(90deg,#7ac143,#2e7d32)}
     @media print{body{background:#fff}.carnet{box-shadow:none}}`;
-  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Gafete ${esc(b.codigo)}</title><style>${css}</style></head>
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Gafete ${esc(b.nombre)} - ${esc(b.cedula)}</title><style>${css}</style></head>
     <body>${badgeCardHTML(b, qr)}
     <script>window.onload=function(){setTimeout(function(){window.print();},250);};<\/script>
     </body></html>`);
@@ -3371,6 +3452,16 @@ function userEditor(user, onDone){
 async function boot(){
   if(state.demo) demoLoad();
   opsLoad();
+
+  // Verificación pública de gafete: ?gafete=CODIGO (al escanear el QR)
+  const params = new URLSearchParams(location.search);
+  const gaf = params.get("gafete");
+  if(gaf){
+    try{ await ensureSeedAdmin(); }catch(e){}
+    await renderPublicBadge(gaf);
+    return;
+  }
+
   let seeded=false;
   try{ seeded = await ensureSeedAdmin(); }catch(e){ console.warn("seed:",e); }
 
