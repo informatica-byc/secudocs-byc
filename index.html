@@ -463,6 +463,18 @@ a{color:var(--emerald);text-decoration:none}
 .scan-cam-ico svg{width:22px;height:22px}
 .scan-box.big .scan-cam-ico{width:46px;height:46px}
 .scan-box.big .scan-cam-ico svg{width:24px;height:24px}
+
+/* Historial embebido en la vista de verificación */
+.vb-hist-section{max-width:960px;margin-top:34px;padding-top:24px;border-top:1px solid var(--line)}
+.vb-hist-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.vb-hist-head h3{display:flex;align-items:center;gap:8px;font-size:16px;color:var(--ink);margin:0}
+.vb-hist-head h3 svg{width:19px;height:19px;color:var(--muted-2)}
+.vb-hist-section .search-box{margin-bottom:14px}
+.empty-state.sm{padding:34px 20px}
+.empty-state.sm .es-ico{width:52px;height:52px;margin-bottom:12px}
+.empty-state.sm .es-ico svg{width:24px;height:24px}
+.empty-state.sm h3{font-size:15px}
+.empty-state.sm p{font-size:13px}
 .scan-result{min-height:20px}
 .loader-wrap.sm{padding:20px}
 .scan-empty{display:flex;align-items:center;gap:12px;background:rgba(217,138,31,.08);border:1px solid rgba(217,138,31,.25);border-radius:12px;padding:14px;color:var(--warn)}
@@ -3180,9 +3192,6 @@ function renderVerifyBadge(){
       <h2>Verificar gafete</h2>
       <p>Escaneá el código QR del carnet con un lector, o escribí el código interno (ej. <b>BYCU-0001</b>) y presioná Enter. Se mostrará la ficha del colaborador y si el carnet está vigente.</p>
     </div>
-    <div class="toolbar" style="justify-content:flex-end">
-      <button class="btn ghost" id="vbHistBtn">${ICON.doc} Ver historial</button>
-    </div>
     <div class="verify-tool">
       <div class="scan-row">
         <div class="scan-box big">
@@ -3198,6 +3207,15 @@ function renderVerifyBadge(){
         <p class="vb-cam-hint">Apuntá la cámara al código QR del carnet</p>
       </div>
       <div id="vbResult" class="vb-result"></div>
+    </div>
+
+    <div class="vb-hist-section">
+      <div class="vb-hist-head">
+        <h3>${ICON.doc} Historial de verificaciones</h3>
+        ${state.user.rol==="seguridad"?"":`<button class="btn ghost sm" id="vbHistExport">${ICON.doc} Exportar a Excel</button>`}
+      </div>
+      <div class="search-box"><span class="ico">${ICON.search}</span><input id="vbHistSearch" placeholder="Buscar por código, nombre o cédula…" autocomplete="off"></div>
+      <div id="vbHistList"><div class="loader-wrap sm"><div class="spinner"></div><p>Cargando historial…</p></div></div>
     </div>`;
 
   const input=$("#vbInput");
@@ -3221,13 +3239,14 @@ function renderVerifyBadge(){
     dbLogVerification({
       codigo: b.codigo,
       nombre: b.nombre,
+      cedula: b.cedula||"",
       puesto: b.puesto||"",
       compania: b.compania||"",
       estado,
       verificadoPor: state.user.usuario,
       verificadoNombre: state.user.nombre,
       fecha: new Date().toISOString()
-    }).catch(e=>console.error("log verificación:",e));
+    }).catch(e=>console.error("log verificación:",e)).then(()=>{ if(window.__reloadVerifyHist) window.__reloadVerifyHist(); });
     const qr=makeQRDataURL(badgeVerifyURL(b.codigo),200);
     const banner = vig===false
       ? `<div class="vb-banner vencido">${ICON.warn} CARNET VENCIDO — venció el ${esc(fmtCarnetDate(b.fechaVence))}</div>`
@@ -3334,7 +3353,83 @@ function renderVerifyBadge(){
 
   $("#vbCamBtn").onclick=startCamera;
   $("#vbCamClose").onclick=stopCamera;
-  $("#vbHistBtn").onclick=()=>{ stopRealtime(); renderVerifyLog(); };
+
+  // ----- Historial embebido (carga automática + buscador) -----
+  let histRows=[];
+  let histQuery="";
+  const soloSuyas = state.user.rol==="seguridad";
+
+  const histEstadoBadge=(e)=> e==="vencido"
+    ? `<span class="badge-st out" style="background:rgba(192,57,43,.12);color:#b23b2e">Vencido</span>`
+    : (e==="vigente"
+        ? `<span class="badge-st complete">Vigente</span>`
+        : `<span class="badge-st partial">Sin fecha</span>`);
+  const histFecha=(iso)=>{
+    if(!iso) return "—";
+    try{ const d=new Date(iso); const f=d.toLocaleDateString("es-CR");
+      let h=d.getHours(), m=String(d.getMinutes()).padStart(2,"0"); const ap=h>=12?"p.m.":"a.m."; h=h%12||12;
+      return `${f} ${h}:${m} ${ap}`; }catch(e){ return iso; }
+  };
+
+  const paintHist=()=>{
+    if(state.view!=="verify") return;
+    const list=$("#vbHistList"); if(!list) return;
+    const f=histRows.filter(r=>!histQuery ||
+      (r.codigo+" "+r.nombre+" "+(r.cedula||"")+" "+(r.verificadoNombre||"")+" "+(r.compania||"")).toLowerCase().includes(histQuery));
+    if(histRows.length===0){
+      list.innerHTML=`<div class="empty-state sm"><div class="es-ico">${ICON.doc}</div><h3>Sin verificaciones aún</h3><p>Cuando escanees un gafete, quedará registrado acá.</p></div>`;
+      return;
+    }
+    if(f.length===0){ list.innerHTML=`<div class="empty-state sm"><div class="es-ico">${ICON.search}</div><h3>Sin coincidencias</h3></div>`; return; }
+    list.innerHTML=`<div class="table-wrap"><table class="tbl">
+      <thead><tr>
+        <th>Fecha y hora</th><th>Código</th><th>Colaborador</th>
+        <th class="hide-sm">Cédula</th><th class="hide-sm">Compañía</th>
+        <th>Estado</th>${soloSuyas?'':'<th>Verificó</th>'}
+      </tr></thead>
+      <tbody>${f.map(r=>`<tr>
+        <td>${esc(histFecha(r.fecha))}</td>
+        <td><span class="consec">${esc(r.codigo)}</span></td>
+        <td>${esc(r.nombre)}</td>
+        <td class="hide-sm">${esc(r.cedula||"—")}</td>
+        <td class="hide-sm">${esc(r.compania||"—")}</td>
+        <td>${histEstadoBadge(r.estado)}</td>
+        ${soloSuyas?'':`<td>${esc(r.verificadoNombre||r.verificadoPor||"—")}</td>`}
+      </tr>`).join("")}</tbody>
+    </table></div>`;
+  };
+
+  async function loadHist(){
+    try{ histRows=await dbListVerifications(); }catch(e){ console.error(e); }
+    paintHist();
+  }
+
+  const histSearch=$("#vbHistSearch");
+  if(histSearch) histSearch.addEventListener("input",e=>{ histQuery=e.target.value.toLowerCase(); paintHist(); });
+
+  const histExport=$("#vbHistExport");
+  if(histExport) histExport.onclick=()=>{
+    if(histRows.length===0){ toast("No hay verificaciones para exportar","warn"); return; }
+    const headers=["Fecha y hora","Codigo","Colaborador","Cedula","Puesto","Compania","Estado","Verifico"];
+    const csvRows=histRows.map(r=>[
+      histFecha(r.fecha), r.codigo, r.nombre, r.cedula||"", r.puesto||"", r.compania||"",
+      (r.estado==="vencido"?"Vencido":(r.estado==="vigente"?"Vigente":"Sin fecha")),
+      r.verificadoNombre||r.verificadoPor||""
+    ]);
+    const esc2=(s)=>{ s=String(s==null?"":s); return /[",;\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+    const csv="\ufeff"+[headers.join(";")].concat(csvRows.map(r=>r.map(esc2).join(";"))).join("\r\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url; a.download=`verificaciones_gafetes_${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast("Historial exportado","ok");
+  };
+
+  // exponer loadHist para que doLookup refresque el historial tras cada verificación
+  window.__reloadVerifyHist = loadHist;
+  loadHist();
 }
 
 /* ---------- Historial de verificaciones ----------
@@ -3388,7 +3483,7 @@ async function renderVerifyLog(){
     if(state.view!=="veriflog") return;
     const list=$("#vlList"); if(!list) return;
     const f=rows.filter(r=>!query ||
-      (r.nombre+" "+r.codigo+" "+(r.verificadoNombre||"")+" "+(r.compania||"")+" "+(r.puesto||"")).toLowerCase().includes(query));
+      (r.nombre+" "+r.codigo+" "+(r.cedula||"")+" "+(r.verificadoNombre||"")+" "+(r.compania||"")+" "+(r.puesto||"")).toLowerCase().includes(query));
     if(rows.length===0){
       list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.doc}</div><h3>Sin verificaciones aún</h3><p>Cuando se escaneen gafetes, quedarán registrados acá.</p></div>`;
       return;
@@ -3416,9 +3511,9 @@ async function renderVerifyLog(){
 
   $("#vlExport").onclick=()=>{
     if(rows.length===0){ toast("No hay verificaciones para exportar","warn"); return; }
-    const headers=["Fecha y hora","Codigo","Colaborador","Puesto","Compania","Estado","Verifico"];
+    const headers=["Fecha y hora","Codigo","Colaborador","Cedula","Puesto","Compania","Estado","Verifico"];
     const csvRows=rows.map(r=>[
-      fmtFechaHora(r.fecha), r.codigo, r.nombre, r.puesto||"", r.compania||"",
+      fmtFechaHora(r.fecha), r.codigo, r.nombre, r.cedula||"", r.puesto||"", r.compania||"",
       (r.estado==="vencido"?"Vencido":(r.estado==="vigente"?"Vigente":"Sin fecha")),
       r.verificadoNombre||r.verificadoPor||""
     ]);
