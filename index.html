@@ -626,6 +626,7 @@ const COL_USERS    = "secudocs_usuarios";
 const COL_RECORDS  = "secudocs_registros";
 const COL_COUNTERS = "secudocs_consecutivos";
 const COL_BADGES   = "secudocs_gafetes";
+const COL_VERIFLOG = "secudocs_verificaciones";
 
 let db = null, FB_OK = false;
 try {
@@ -1461,6 +1462,30 @@ async function dbDeleteBadge(id){
   if(state.demo){ state.demoStore.badges=(state.demoStore.badges||[]).filter(x=>x.id!==id); demoSave(); return; }
   await db.collection(COL_BADGES).doc(id).delete();
   trackOps(0, 1);
+}
+
+/* ---- Historial de verificaciones de gafetes ---- */
+async function dbLogVerification(v){
+  if(state.demo){ v.id="v_"+Date.now(); (state.demoStore.veriflog=state.demoStore.veriflog||[]).push(v); demoSave(); return v; }
+  const ref = await db.collection(COL_VERIFLOG).add(v);
+  trackOps(0, 1);
+  return {id:ref.id, ...v};
+}
+/* Lista las verificaciones. El rol seguridad solo ve las suyas (por verificadoPor);
+   admin y encargado ven todas. Se ordena por fecha descendente en el cliente. */
+async function dbListVerifications(){
+  let arr;
+  if(state.demo){ arr=[...(state.demoStore.veriflog||[])]; }
+  else {
+    const snap = await db.collection(COL_VERIFLOG).get();
+    trackOps(Math.max(1,snap.size), 0);
+    arr = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  }
+  if(state.user && state.user.rol==="seguridad"){
+    arr = arr.filter(v=>v.verificadoPor===state.user.usuario);
+  }
+  arr.sort((a,b)=> (b.fecha||"").localeCompare(a.fecha||""));
+  return arr;
 }
 
 /* Prefijo de código interno según la compañía del gafete.
@@ -3056,12 +3081,14 @@ async function renderBadges(){
     <div class="toolbar">
       <div class="search-box"><span class="ico">${ICON.search}</span><input id="badgeSearch" placeholder="Buscar por nombre, cédula o código…"></div>
       <button class="btn ghost" id="scanBadge">${ICON.scan} Buscar por código</button>
+      <button class="btn ghost" id="histBadge">${ICON.doc} Historial</button>
       <button class="btn solid" id="newBadge">${ICON.plus} Nuevo gafete</button>
     </div>
     <div id="badgeList"><div class="loader-wrap"><div class="spinner"></div><p>Cargando gafetes…</p></div></div>`;
 
   $("#newBadge").onclick=()=>badgeEditor(null);
   $("#scanBadge").onclick=()=>badgeScanner();
+  $("#histBadge").onclick=()=>{ stopRealtime(); renderVerifyLog(); };
 
   let badges=[];
   let query="";
@@ -3147,6 +3174,9 @@ function renderVerifyBadge(){
       <h2>Verificar gafete</h2>
       <p>Escaneá el código QR del carnet con un lector, o escribí el código interno (ej. <b>BYCU-0001</b>) y presioná Enter. Se mostrará la ficha del colaborador y si el carnet está vigente.</p>
     </div>
+    <div class="toolbar" style="justify-content:flex-end">
+      <button class="btn ghost" id="vbHistBtn">${ICON.doc} Ver historial</button>
+    </div>
     <div class="verify-tool">
       <div class="scan-row">
         <div class="scan-box big"><span class="ico">${ICON.scan}</span><input id="vbInput" placeholder="Código del gafete…" autocomplete="off" autofocus></div>
@@ -3177,6 +3207,18 @@ function renderVerifyBadge(){
       return;
     }
     const vig=badgeVigente(b);
+    // Registrar en el historial de verificaciones (no bloquea la vista)
+    const estado = vig===false ? "vencido" : (vig===true ? "vigente" : "sin_fecha");
+    dbLogVerification({
+      codigo: b.codigo,
+      nombre: b.nombre,
+      puesto: b.puesto||"",
+      compania: b.compania||"",
+      estado,
+      verificadoPor: state.user.usuario,
+      verificadoNombre: state.user.nombre,
+      fecha: new Date().toISOString()
+    }).catch(e=>console.error("log verificación:",e));
     const qr=makeQRDataURL(badgeVerifyURL(b.codigo),200);
     const banner = vig===false
       ? `<div class="vb-banner vencido">${ICON.warn} CARNET VENCIDO — venció el ${esc(fmtCarnetDate(b.fechaVence))}</div>`
@@ -3283,6 +3325,115 @@ function renderVerifyBadge(){
 
   $("#vbCamBtn").onclick=startCamera;
   $("#vbCamClose").onclick=stopCamera;
+  $("#vbHistBtn").onclick=()=>{ stopRealtime(); renderVerifyLog(); };
+}
+
+/* ---------- Historial de verificaciones ----------
+   Admin y Encargado ven todas; Seguridad ve solo las suyas. Exporta a CSV
+   (que Excel abre directamente). */
+async function renderVerifyLog(){
+  if(state.user.rol!=="seguridad" && state.user.rol!=="admin" && state.user.rol!=="encargado"){
+    state.view="dashboard"; renderDashboard(); return;
+  }
+  stopRealtime();
+  const soloSuyas = state.user.rol==="seguridad";
+  const main=$("#main");
+  main.innerHTML=`
+    <div class="page-head">
+      <h2>Historial de verificaciones</h2>
+      <p>${soloSuyas?"Estas son las verificaciones de gafetes que realizaste.":"Registro de todas las verificaciones de gafetes realizadas por el personal de seguridad."}</p>
+    </div>
+    <div class="toolbar">
+      <div class="search-box"><span class="ico">${ICON.search}</span><input id="vlSearch" placeholder="Buscar por nombre, código o quién verificó…"></div>
+      <button class="btn ghost" id="vlBack">${ICON.arrow} Volver</button>
+      <button class="btn solid" id="vlExport">${ICON.doc} Exportar a Excel</button>
+    </div>
+    <div id="vlList"><div class="loader-wrap"><div class="spinner"></div><p>Cargando historial…</p></div></div>`;
+
+  $("#vlBack").onclick=()=>{
+    if(state.user.rol==="seguridad"){ state.view="verify"; renderVerifyBadge(); }
+    else { state.view="badges"; renderBadges(); }
+  };
+
+  let rows=[];
+  let query="";
+
+  const estadoBadge=(e)=> e==="vencido"
+    ? `<span class="badge-st out" style="background:rgba(192,57,43,.12);color:#b23b2e">Vencido</span>`
+    : (e==="vigente"
+        ? `<span class="badge-st complete">Vigente</span>`
+        : `<span class="badge-st partial">Sin fecha</span>`);
+
+  const fmtFechaHora=(iso)=>{
+    if(!iso) return "—";
+    try{
+      const d=new Date(iso);
+      const f=d.toLocaleDateString("es-CR");
+      let h=d.getHours(), m=String(d.getMinutes()).padStart(2,"0");
+      const ap=h>=12?"p.m.":"a.m."; h=h%12||12;
+      return `${f} ${h}:${m} ${ap}`;
+    }catch(e){ return iso; }
+  };
+
+  const paint=()=>{
+    if(state.view!=="veriflog") return;
+    const list=$("#vlList"); if(!list) return;
+    const f=rows.filter(r=>!query ||
+      (r.nombre+" "+r.codigo+" "+(r.verificadoNombre||"")+" "+(r.compania||"")+" "+(r.puesto||"")).toLowerCase().includes(query));
+    if(rows.length===0){
+      list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.doc}</div><h3>Sin verificaciones aún</h3><p>Cuando se escaneen gafetes, quedarán registrados acá.</p></div>`;
+      return;
+    }
+    if(f.length===0){ list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.search}</div><h3>Sin coincidencias</h3></div>`; return; }
+    list.innerHTML=`<div class="table-wrap"><table class="tbl">
+      <thead><tr>
+        <th>Fecha y hora</th><th>Código</th><th>Colaborador</th>
+        <th class="hide-sm">Puesto</th><th class="hide-sm">Compañía</th>
+        <th>Estado</th>${soloSuyas?'':'<th>Verificó</th>'}
+      </tr></thead>
+      <tbody>${f.map(r=>`<tr>
+        <td>${esc(fmtFechaHora(r.fecha))}</td>
+        <td><span class="consec">${esc(r.codigo)}</span></td>
+        <td>${esc(r.nombre)}</td>
+        <td class="hide-sm">${esc(r.puesto||"—")}</td>
+        <td class="hide-sm">${esc(r.compania||"—")}</td>
+        <td>${estadoBadge(r.estado)}</td>
+        ${soloSuyas?'':`<td>${esc(r.verificadoNombre||r.verificadoPor||"—")}</td>`}
+      </tr>`).join("")}</tbody>
+    </table></div>`;
+  };
+
+  $("#vlSearch").addEventListener("input",e=>{ query=e.target.value.toLowerCase(); paint(); });
+
+  $("#vlExport").onclick=()=>{
+    if(rows.length===0){ toast("No hay verificaciones para exportar","warn"); return; }
+    const headers=["Fecha y hora","Codigo","Colaborador","Puesto","Compania","Estado","Verifico"];
+    const csvRows=rows.map(r=>[
+      fmtFechaHora(r.fecha), r.codigo, r.nombre, r.puesto||"", r.compania||"",
+      (r.estado==="vencido"?"Vencido":(r.estado==="vigente"?"Vigente":"Sin fecha")),
+      r.verificadoNombre||r.verificadoPor||""
+    ]);
+    const esc2=(s)=>{ s=String(s==null?"":s); return /[",;\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+    const csv="\ufeff"+[headers.join(";")].concat(csvRows.map(r=>r.map(esc2).join(";"))).join("\r\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    const hoy=new Date().toISOString().slice(0,10);
+    a.href=url; a.download=`verificaciones_gafetes_${hoy}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast("Historial exportado","ok");
+  };
+
+  state.view="veriflog";
+  try{
+    rows=await dbListVerifications();
+    paint();
+  }catch(e){
+    console.error(e);
+    const list=$("#vlList");
+    if(list) list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.warn}</div><h3>No se pudo cargar el historial</h3><p>Detalle: ${esc((e&&e.message)||String(e))}</p></div>`;
+  }
 }
 
 /* ---------- Escáner / búsqueda por código (usado en el módulo admin/encargado) ---------- */
