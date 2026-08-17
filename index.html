@@ -515,6 +515,38 @@ a{color:var(--emerald);text-decoration:none}
 .verify-qr img{width:110px;height:110px}
 .verify-foot{font-size:11px;color:#9aa8a0;margin-top:12px;letter-spacing:.3px}
 
+/* Vista "Verificar gafete" (rol Seguridad) */
+.verify-tool{max-width:640px}
+.scan-box.big{padding:16px 18px;border-width:2px}
+.scan-box.big input{font-size:19px}
+.scan-box.big .ico svg{width:26px;height:26px}
+.vb-result{margin-top:20px}
+.vb-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.vb-card.is-vencido{border-color:rgba(192,57,43,.4)}
+.vb-card.is-vigente{border-color:rgba(31,157,99,.35)}
+.vb-banner{display:flex;align-items:center;gap:9px;padding:12px 18px;font-weight:800;font-size:14px;letter-spacing:.4px}
+.vb-banner svg{width:20px;height:20px;flex-shrink:0}
+.vb-banner.vigente{background:rgba(31,157,99,.12);color:#177a4d}
+.vb-banner.vencido{background:rgba(192,57,43,.12);color:#b23b2e}
+.vb-banner.neutro{background:var(--surface-2);color:var(--muted-2)}
+.vb-body{display:flex;gap:18px;padding:20px;align-items:center;flex-wrap:wrap}
+.vb-photo{width:110px;height:147px;flex-shrink:0;border-radius:10px;overflow:hidden;background:var(--surface-2);display:grid;place-items:center}
+.vb-photo img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
+.vb-photo-empty svg{width:44px;height:44px;color:var(--muted-2)}
+.vb-info{flex:1;min-width:200px;display:flex;flex-direction:column;gap:8px}
+.vb-name{font-size:21px;color:var(--ink);line-height:1.15}
+.vb-rows{display:flex;flex-direction:column;gap:3px;font-size:14px;color:var(--ink-soft)}
+.vb-rows svg{width:14px;height:14px;vertical-align:-2px}
+.vb-comp{color:var(--emerald-d);font-weight:600}
+.vb-dates{display:flex;gap:18px;font-size:13px;color:var(--muted);margin-top:4px}
+.vb-qr{flex-shrink:0}
+.vb-qr img{width:96px;height:96px}
+.vb-empty{display:flex;align-items:center;gap:13px;padding:22px;color:var(--warn)}
+.vb-empty svg{width:30px;height:30px;flex-shrink:0}
+.vb-empty b{display:block;color:var(--ink);font-size:16px}
+.vb-empty span{color:var(--muted);font-size:13px}
+@media(max-width:560px){.vb-body{justify-content:center;text-align:center}.vb-info{align-items:center}}
+
 @media(max-width:560px){
   .badge-editor{grid-template-columns:1fr}
   .be-photo{width:100%;height:240px}
@@ -1767,6 +1799,10 @@ function renderApp(){
         <button class="nav-item ${state.view==='badges'?'active':''}" data-nav="badges">
           <span class="ni-ico">${ICON.badge}</span> Gafetes / Carnets
         </button>`:''}
+        ${state.user.rol==="seguridad"?`
+        <button class="nav-item ${state.view==='verify'?'active':''}" data-nav="verify">
+          <span class="ni-ico">${ICON.scan}</span> Verificar gafete
+        </button>`:''}
         ${isAdmin?`
         <div class="sec-lbl">Administración</div>
         <button class="nav-item ${state.view==='users'?'active':''}" data-nav="users">
@@ -1795,6 +1831,7 @@ function renderApp(){
       if(nav==="dashboard") renderDashboard();
       if(nav==="users"){ stopRealtime(); renderUsers(); }
       if(nav==="badges"){ stopRealtime(); renderBadges(); }
+      if(nav==="verify"){ stopRealtime(); renderVerifyBadge(); }
       // refrescar estado activo
       $$(".nav-item[data-nav]").forEach(x=>x.classList.toggle("active", x.dataset.nav===nav && nav!=="logout"));
     };
@@ -1804,6 +1841,7 @@ function renderApp(){
 
   if(state.view==="users" && isAdmin) renderUsers();
   else if(state.view==="badges" && canBadges) renderBadges();
+  else if(state.view==="verify" && state.user.rol==="seguridad") renderVerifyBadge();
   else { state.view="dashboard"; renderDashboard(); }
   renderOpsBadge();
 }
@@ -3078,6 +3116,72 @@ async function renderBadges(){
       <h3>No se pudieron cargar los gafetes</h3>
       <p>${perm?"Firestore denegó el acceso. Falta publicar las reglas de la colección <b>secudocs_gafetes</b> en la consola de Firebase.":"Detalle: "+esc(msg)}</p></div>`;
   }
+}
+
+/* ---------- Vista de verificación de gafete (rol Seguridad) ----------
+   Solo escanear/buscar por código y ver la ficha. Sin lista, sin crear ni
+   editar. Si el gafete está vencido, se muestra igual con aviso en rojo. */
+function renderVerifyBadge(){
+  if(state.user.rol!=="seguridad" && state.user.rol!=="admin"){ state.view="dashboard"; renderDashboard(); return; }
+  stopRealtime();
+  const main=$("#main");
+  main.innerHTML=`
+    <div class="page-head">
+      <h2>Verificar gafete</h2>
+      <p>Escaneá el código QR del carnet con un lector, o escribí el código interno (ej. <b>BYCU-0001</b>) y presioná Enter. Se mostrará la ficha del colaborador y si el carnet está vigente.</p>
+    </div>
+    <div class="verify-tool">
+      <div class="scan-box big"><span class="ico">${ICON.scan}</span><input id="vbInput" placeholder="Código del gafete…" autocomplete="off" autofocus></div>
+      <div id="vbResult" class="vb-result"></div>
+    </div>`;
+
+  const input=$("#vbInput");
+  input.focus();
+
+  const doLookup=async()=>{
+    const code=(input.value||"").trim().toUpperCase();
+    if(!code) return;
+    const box=$("#vbResult");
+    box.innerHTML=`<div class="loader-wrap"><div class="spinner"></div><p>Buscando ${esc(code)}…</p></div>`;
+    let b=null;
+    try{ b=await dbGetBadgeByCode(code); }catch(e){ console.error(e); }
+    if(!b){
+      box.innerHTML=`<div class="vb-card"><div class="vb-empty">${ICON.warn}<div><b>Gafete no encontrado</b><span>El código <b>${esc(code)}</b> no corresponde a ningún carnet registrado.</span></div></div></div>`;
+      input.select();
+      return;
+    }
+    const vig=badgeVigente(b);
+    const qr=makeQRDataURL(badgeVerifyURL(b.codigo),200);
+    const banner = vig===false
+      ? `<div class="vb-banner vencido">${ICON.warn} CARNET VENCIDO — venció el ${esc(fmtCarnetDate(b.fechaVence))}</div>`
+      : (vig===true
+          ? `<div class="vb-banner vigente">${ICON.check} CARNET VIGENTE — válido hasta ${esc(fmtCarnetDate(b.fechaVence))}</div>`
+          : `<div class="vb-banner neutro">${ICON.info} Sin fecha de vencimiento registrada</div>`);
+    box.innerHTML=`
+      <div class="vb-card ${vig===false?'is-vencido':(vig===true?'is-vigente':'')}">
+        ${banner}
+        <div class="vb-body">
+          <div class="vb-photo">${b.foto?`<img src="${b.foto}">`:`<div class="vb-photo-empty">${ICON.user}</div>`}</div>
+          <div class="vb-info">
+            <b class="vb-name">${esc(b.nombre)}</b>
+            <div class="vb-rows">
+              <span>${ICON.hash} <b>${esc(b.codigo)}</b></span>
+              <span>Cédula: ${esc(b.cedula)}</span>
+              <span>${esc(b.puesto||"—")}</span>
+              <span class="vb-comp">${esc(b.compania||"")}</span>
+            </div>
+            <div class="vb-dates">
+              <span>Ingreso: <b>${esc(fmtCarnetDate(b.fechaIngreso))}</b></span>
+              <span>Vence: <b>${esc(fmtCarnetDate(b.fechaVence))}</b></span>
+            </div>
+          </div>
+          <div class="vb-qr">${qr?`<img src="${qr}">`:''}</div>
+        </div>
+      </div>`;
+    input.select();
+  };
+
+  input.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); doLookup(); } });
 }
 
 /* ---------- Escáner / búsqueda por código ---------- */
