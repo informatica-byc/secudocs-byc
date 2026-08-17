@@ -3010,8 +3010,8 @@ async function renderBadges(){
           </div>
         </div>
         <div class="bi-actions">
-          <button class="icon-btn view" title="Ver / imprimir gafete" onclick="badgeView('${b.id}')">${ICON.eye}</button>
-          <button class="icon-btn edit" title="Editar" onclick="badgeEdit('${b.id}')">${ICON.edit}</button>
+          <button class="icon-btn view" title="Ver / imprimir gafete" onclick="_badgeView('${b.id}')">${ICON.eye}</button>
+          <button class="icon-btn edit" title="Editar" onclick="_badgeEdit('${b.id}')">${ICON.edit}</button>
           <button class="icon-btn del" title="Eliminar" onclick="badgeDel('${b.id}')">${ICON.trash}</button>
         </div>
       </div>`).join("")+`</div>`;
@@ -3020,8 +3020,8 @@ async function renderBadges(){
   $("#badgeSearch").addEventListener("input",e=>{ query=e.target.value.toLowerCase(); paint(); });
 
   // acciones sobre el array vivo
-  window.badgeEdit=id=>badgeEditor(badges.find(b=>b.id===id));
-  window.badgeView=id=>badgeView(badges.find(b=>b.id===id));
+  window._badgeEdit=id=>badgeEditor(badges.find(b=>b.id===id));
+  window._badgeView=id=>badgeView(badges.find(b=>b.id===id));
   window.badgeDel=id=>{
     const b=badges.find(x=>x.id===id);
     const modal=el("div","modal-bg show");
