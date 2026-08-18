@@ -3783,7 +3783,7 @@ async function badgeEditor(badge){
           <div class="field"><label>Puesto *</label><input id="bePuesto" value="${esc(b.puesto)}" placeholder="Ej. Consultor Soporte TI"></div>
           <div class="field-row">
             <div class="field"><label>Fecha de ingreso</label><input type="date" id="beIngreso" value="${esc(b.fechaIngreso||"")}"></div>
-            <div class="field"><label>Fecha de vencimiento</label><input type="date" id="beVence" value="${esc(b.fechaVence||"")}"></div>
+            <div class="field"><label>Fecha de vencimiento</label><input type="date" id="beVence" value="${esc(b.fechaVence||"")}"><small class="fhint">Se calcula solo (ingreso + 10 años); podés cambiarla.</small></div>
           </div>
           <div class="field">
             <label>Código interno</label>
@@ -3829,6 +3829,20 @@ async function badgeEditor(badge){
   const removeBtn=$("#beRemovePhoto");
   if(removeBtn) removeBtn.onclick=()=>{ fotoData=""; $("#bePhoto").innerHTML=`<div class="be-photo-empty">${ICON.camera}<span>Sin foto</span></div>`; };
 
+  // Al cambiar la fecha de ingreso, sugerir vencimiento = ingreso + 10 años.
+  // Solo autocompleta si el vencimiento está vacío o si coincidía con el
+  // cálculo del ingreso anterior (para no pisar un valor puesto a mano).
+  const ingEl=$("#beIngreso"), venEl=$("#beVence");
+  if(ingEl && venEl){
+    ingEl.addEventListener("change",()=>{
+      const prevCalc = addYearsISO(b.fechaIngreso||"", 10);
+      if(!venEl.value || venEl.value===prevCalc){
+        venEl.value = addYearsISO(ingEl.value, 10);
+      }
+      b.fechaIngreso = ingEl.value; // actualizar referencia para el próximo cambio
+    });
+  }
+
   $("#beSave").onclick=async()=>{
     const nombre=$("#beNombre").value.trim();
     const cedula=$("#beCedula").value.trim();
@@ -3842,7 +3856,8 @@ async function badgeEditor(badge){
     try{
       if(isNew){
         const codigo=await nextBadgeCode(compania);
-        const nb={nombre,cedula,puesto,compania,fechaIngreso,fechaVence,foto:fotoData,codigo,
+        const venceCalc = fechaVence || (fechaIngreso ? addYearsISO(fechaIngreso, 10) : "");
+        const nb={nombre,cedula,puesto,compania,fechaIngreso,fechaVence:venceCalc,foto:fotoData,codigo,
                   estado:"activo", creadoPor:state.user.usuario, creadoEn:new Date().toISOString()};
         const saved=await dbCreateBadge(nb);
         close(); toast(`Gafete creado: ${codigo}`,"ok");
@@ -3917,6 +3932,22 @@ function fmtCarnetDate(iso){
   const p=iso.split("-"); // yyyy-mm-dd
   if(p.length===3) return `${p[2]}-${p[1]}-${p[0]}`;
   return iso;
+}
+
+/* Suma años a una fecha ISO (yyyy-mm-dd) y devuelve otra fecha ISO.
+   Se usa para calcular el vencimiento del carnet a partir del ingreso. */
+function addYearsISO(iso, years){
+  if(!iso) return "";
+  const p=iso.split("-");
+  if(p.length!==3) return "";
+  let y=parseInt(p[0],10)+years;
+  let m=p[1], d=p[2];
+  // manejar 29 de febrero -> 28 si el año destino no es bisiesto
+  if(m==="02" && d==="29"){
+    const bis=(y%4===0 && y%100!==0)||(y%400===0);
+    if(!bis) d="28";
+  }
+  return `${y}-${m}-${d}`;
 }
 
 /* URL pública de verificación del gafete. Apunta a la misma página del sistema
@@ -4002,7 +4033,8 @@ function renderSelfRegister(){
     btn.innerHTML='<span class="spinner sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.4)"></span> Enviando…';
     try{
       const codigo=await nextBadgeCode(compania);
-      const nb={nombre,cedula,puesto,compania,fechaIngreso,fechaVence:"",foto:fotoData,codigo,
+      const fechaVence = fechaIngreso ? addYearsISO(fechaIngreso, 10) : "";
+      const nb={nombre,cedula,puesto,compania,fechaIngreso,fechaVence,foto:fotoData,codigo,
                 estado:"pendiente", origen:"autoregistro",
                 creadoPor:"autoregistro", creadoEn:new Date().toISOString()};
       await dbCreateBadge(nb);
