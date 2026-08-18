@@ -240,6 +240,12 @@ a{color:var(--emerald);text-decoration:none}
 .creator-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);padding:3px 9px 3px 4px;border-radius:20px;white-space:nowrap;max-width:170px;overflow:hidden;text-overflow:ellipsis}
 .creator-tag .ct-av{width:20px;height:20px;border-radius:50%;background:var(--grad-ice);color:#fff;display:inline-grid;place-items:center;font-size:9.5px;font-weight:700;flex-shrink:0}
 .row-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:nowrap;white-space:nowrap}
+.col-chk{width:38px;text-align:center}
+.col-chk input{width:16px;height:16px;cursor:pointer;accent-color:var(--emerald)}
+.export-menu-wrap{position:relative;display:inline-block}
+.export-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:40;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;min-width:210px}
+.export-opt{display:block;width:100%;text-align:left;border:none;background:transparent;font-family:var(--font);font-size:13.5px;color:var(--ink-soft);padding:9px 12px;border-radius:8px;cursor:pointer}
+.export-opt:hover{background:var(--surface-2);color:var(--ink)}
 .icon-btn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted);transition:.18s;border:1px solid transparent}
 .icon-btn:hover{background:var(--surface-2);color:var(--ink);border-color:var(--line)}
 .icon-btn.edit:hover{color:var(--ice-d);border-color:rgba(29,111,184,.3)}
@@ -2101,6 +2107,7 @@ async function openForm(formId){
   }
   state.currentForm = form;
   state.exitTab = "activas";
+  state.exportSel = {};
   state.view = "form:"+formId;
   const main = $("#main");
   main.innerHTML = `
@@ -2116,6 +2123,16 @@ async function openForm(formId){
         <span class="ico">${ICON.search}</span>
         <input id="recSearch" placeholder="Buscar por consecutivo, nombre, fecha…">
       </div>
+      ${hasFullAccess(state.user.rol)?`
+      <div class="export-menu-wrap">
+        <button class="btn ghost" id="exportRecs">${ICON.doc} Exportar a Excel ▾</button>
+        <div class="export-menu" id="exportMenu" style="display:none">
+          <button class="export-opt" data-exp="pendientes">Exportar pendientes</button>
+          <button class="export-opt" data-exp="seleccion">Exportar seleccionadas</button>
+          <button class="export-opt" data-exp="todas">Exportar todas</button>
+        </div>
+      </div>`:`
+      <button class="btn ghost" id="exportRecsSimple">${ICON.doc} Exportar a Excel</button>`}
       <button class="btn solid" id="newRec"${canCreateInForm(form, state.user.rol)?'':' style="display:none"'}>${ICON.plus} Nueva boleta</button>
     </div>
     <div id="recList"><div class="loader-wrap"><div class="spinner"></div><p>Cargando registros…</p></div></div>`;
@@ -2124,6 +2141,20 @@ async function openForm(formId){
   const newRecBtn = $("#newRec");
   if(newRecBtn) newRecBtn.onclick = ()=>{ if(canCreateInForm(form, state.user.rol)) openEditor(form, null); };
   $("#recSearch").addEventListener("input", e=>{ state.search=e.target.value.toLowerCase(); paintRecords(); });
+  // Exportación: menú (admin/encargado) o botón simple (seguridad)
+  if(hasFullAccess(state.user.rol)){
+    const expBtn=$("#exportRecs"), expMenu=$("#exportMenu");
+    if(expBtn && expMenu){
+      expBtn.onclick=(e)=>{ e.stopPropagation(); expMenu.style.display = expMenu.style.display==="none"?"block":"none"; };
+      document.addEventListener("click",()=>{ if(expMenu) expMenu.style.display="none"; });
+      expMenu.querySelectorAll(".export-opt").forEach(opt=>{
+        opt.onclick=()=>{ expMenu.style.display="none"; exportFormRecords(form, opt.getAttribute("data-exp")); };
+      });
+    }
+  } else {
+    const simple=$("#exportRecsSimple");
+    if(simple) simple.onclick=()=>exportFormRecords(form, "todas");
+  }
 
   // Admin y Encargado necesitan los nombres de los creadores para la etiqueta
   if(hasFullAccess(state.user.rol)){ try{ await loadUserMap(); }catch(e){} }
@@ -2207,13 +2238,21 @@ function paintRecords(){
   // El rol seguridad no edita boletas de formularios que solo consulta
   // (aquellos donde no está autorizado a crear, como el permiso de salida).
   const canEditRec = canCreateInForm(form, state.user.rol);
+  // Control de exportación: solo admin y encargado ven la columna, los
+  // checkboxes y el estado Exportada/Pendiente.
+  const showExport = hasFullAccess(state.user.rol);
+  const isExported = (r)=> !!(r.data && r.data._exportada);
+  const selSet = state.exportSel = state.exportSel || {};
+  const allSel = showExport && rows.length>0 && rows.every(r=>selSet[r.id]);
 
   cont.innerHTML = tabsHtml + `<div class="table-wrap"><table class="tbl">
     <thead><tr>
+      ${showExport?`<th class="col-chk"><input type="checkbox" id="selAll" ${allSel?'checked':''} title="Seleccionar todas"></th>`:''}
       <th>Consecutivo</th>
       ${summaryKeys.map(k=>`<th class="${k.hideSm?'hide-sm':''}">${esc(k.label)}</th>`).join("")}
       ${showCreator?'<th>Creado por</th>':''}
       <th>Estado</th>
+      ${showExport?'<th>Exportación</th>':''}
       <th style="text-align:right">Acciones</th>
     </tr></thead>
     <tbody>
@@ -2226,11 +2265,17 @@ function paintRecords(){
               ? `<span class="badge-st out" title="Salida confirmada por ${esc(creatorName(d._salidaPor))} · ${esc(fmtSalida(d._salidaEn))}">Ya salió</span>`
               : `<span class="badge-st active">Activa</span>`)
           : `<span class="badge-st ${complete?'complete':'partial'}">${complete?'Completa':'Pendiente'}</span>`;
+        const exp = isExported(r);
+        const expHtml = exp
+          ? `<span class="badge-st complete" title="Exportada${d._exportadaEn?' · '+esc(fmtSalida(d._exportadaEn)):''}">Exportada</span>`
+          : `<span class="badge-st partial">Pendiente</span>`;
         return `<tr>
+          ${showExport?`<td class="col-chk"><input type="checkbox" class="rowChk" data-id="${r.id}" ${selSet[r.id]?'checked':''}></td>`:''}
           <td><span class="consec">${esc(r.consecutivo)}</span></td>
           ${summaryKeys.map(k=>`<td class="${k.hideSm?'hide-sm':''}">${esc(summaryValue(d, k))}</td>`).join("")}
           ${showCreator?`<td><span class="creator-tag" title="Creado por ${esc(creatorName(r.creadoPor))}"><span class="ct-av">${esc(initials(creatorName(r.creadoPor)))}</span>${esc(creatorName(r.creadoPor))}</span></td>`:''}
           <td>${estadoHtml}</td>
+          ${showExport?`<td>${expHtml}</td>`:''}
           <td><div class="row-actions">
             ${showExitBtn?`<button class="btn solid xs exit-btn" title="Confirmar que el colaborador ya salió" onclick="markExit('${r.id}')">${ICON.check} Aceptar salida</button>`:''}
             <button class="icon-btn view" title="Ver documento" onclick="viewRecord('${r.id}')">${ICON.eye}</button>
@@ -2242,10 +2287,139 @@ function paintRecords(){
       }).join("")}
     </tbody>
   </table></div>`;
+
+  // enganchar checkboxes (solo admin/encargado)
+  if(showExport){
+    const selAll=$("#selAll");
+    if(selAll) selAll.onchange=()=>{
+      rows.forEach(r=>{ selSet[r.id]=selAll.checked; });
+      paintRecords();
+    };
+    cont.querySelectorAll(".rowChk").forEach(chk=>{
+      chk.onchange=()=>{ selSet[chk.getAttribute("data-id")]=chk.checked; 
+        const sa=$("#selAll"); if(sa) sa.checked = rows.every(r=>selSet[r.id]);
+      };
+    });
+  }
 }
 
 /* Cambia entre Activas / Ya salieron */
 window.setExitTab = function(tab){ state.exitTab = tab; paintRecords(); };
+
+/* ---------- Exportar el historial de boletas de un formulario a CSV ----------
+   Exporta TODOS los campos de cada boleta. Campos complejos se serializan de
+   forma legible (firmas -> "Firmado", checklist -> lista, repeater -> filas). */
+function exportFormRecords(form, modo){
+  modo = modo || "todas";
+  const all = state.records || [];
+  if(all.length===0){ toast("No hay boletas para exportar","warn"); return; }
+
+  // Filtrar según el modo elegido
+  let recs;
+  if(modo==="pendientes"){
+    recs = all.filter(r=> !(r.data && r.data._exportada));
+    if(recs.length===0){ toast("No hay boletas pendientes de exportar","info"); return; }
+  } else if(modo==="seleccion"){
+    const sel = state.exportSel || {};
+    recs = all.filter(r=> sel[r.id]);
+    if(recs.length===0){ toast("No seleccionaste ninguna boleta","warn"); return; }
+  } else {
+    recs = all;
+  }
+
+  // valor legible de un campo según su tipo
+  const cellValue=(f, data)=>{
+    const v = data[f.k];
+    switch(f.type){
+      case "signature": return (v && String(v).length>50) ? "Firmado" : "";
+      case "toggle": return v===true||v==="si"||v==="sí" ? "Sí" : (v===false||v==="no" ? "No" : (v||""));
+      case "date": return v ? fmtDate(v) : "";
+      case "time": return v ? fmt12h(v) : "";
+      case "checklist": {
+        if(!v) return "";
+        if(Array.isArray(v)) return v.join(" | ");
+        if(typeof v==="object") return Object.keys(v).filter(k=>v[k]).join(" | ");
+        return String(v);
+      }
+      case "repeater": {
+        if(!Array.isArray(v) || v.length===0) return "";
+        const cols = f.cols||[];
+        // cada fila como "col1: val; col2: val", filas separadas por " || "
+        return v.map((row,i)=>{
+          const parts = cols.map(c=>{
+            let cv=row[c.k];
+            if(c.type==="date") cv=cv?fmtDate(cv):"";
+            else if(c.type==="time") cv=cv?fmt12h(cv):"";
+            else if(cv==null) cv="";
+            return `${c.label}: ${cv}`;
+          });
+          return `(${i+1}) ${parts.join("; ")}`;
+        }).join("  ||  ");
+      }
+      default: return v==null ? "" : String(v);
+    }
+  };
+
+  // columnas: metadatos + un campo por cada campo real del formulario
+  const campos = form.fields.filter(f=>!f.sec);
+  const headers = ["Consecutivo","Fecha de creación","Estado","Creado por"].concat(campos.map(f=>f.label));
+
+  const fmtCreado=(iso)=>{
+    if(!iso) return "";
+    try{ const d=new Date(iso); return d.toLocaleString("es-CR"); }catch(e){ return iso; }
+  };
+  const estadoTxt=(r)=>{
+    const d=r.data||{};
+    if(hasExitFlow(form)) return d._salida ? "Ya salió" : "Activa";
+    return recordIsComplete(form, d) ? "Completa" : "Pendiente";
+  };
+
+  const rows = recs.map(r=>{
+    const d=r.data||{};
+    const meta=[ r.consecutivo||"", fmtCreado(r.creadoEn||r.fecha), estadoTxt(r), creatorName(r.creadoPor) ];
+    const vals=campos.map(f=>cellValue(f, d));
+    return meta.concat(vals);
+  });
+
+  // armar CSV (separador ; para que Excel en español lo abra en columnas)
+  const esc2=(s)=>{ s=String(s==null?"":s); return /[";\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const csv="\ufeff"+[headers.map(esc2).join(";")]
+    .concat(rows.map(r=>r.map(esc2).join(";")))
+    .join("\r\n");
+
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  const hoy=new Date().toISOString().slice(0,10);
+  const slug=(form.code||form.id||"formulario").replace(/[^a-zA-Z0-9_-]/g,"_");
+  a.href=url; a.download=`${slug}_${hoy}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast(`Exportadas ${recs.length} boleta(s)`,"ok");
+
+  // Marcar las boletas exportadas (estado compartido). Solo admin/encargado
+  // gestiona esto; el rol seguridad exporta sin cambiar el estado.
+  if(hasFullAccess(state.user.rol)){
+    markRecordsExported(recs);
+  }
+}
+
+/* Marca una lista de boletas como exportadas en la base de datos y refresca. */
+async function markRecordsExported(recs){
+  const pend = recs.filter(r=> !(r.data && r.data._exportada));
+  if(pend.length===0){ return; }
+  const stamp = new Date().toISOString();
+  for(const r of pend){
+    const data = {...(r.data||{}), _exportada:true, _exportadaPor:state.user.usuario, _exportadaEn:stamp};
+    try{
+      await dbUpdateRecord(r.id, { data });
+      r.data = data; // reflejar en memoria
+    }catch(e){ console.error("marcar exportada:",e); }
+  }
+  // limpiar selección y repintar
+  state.exportSel = {};
+  paintRecords();
+}
 
 /* Formatea la marca de tiempo de salida a algo legible */
 function fmtSalida(iso){
