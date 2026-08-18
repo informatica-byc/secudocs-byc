@@ -473,6 +473,9 @@ a{color:var(--emerald);text-decoration:none}
 .sr-photo-empty span{font-size:12px}
 .sr-photo-btn{cursor:pointer}
 .sr-fields{display:flex;flex-direction:column;gap:13px;margin-bottom:20px}
+.sr-ced-msg{display:block;font-size:12px;margin-top:4px;min-height:14px}
+.sr-ced-msg.ok{color:var(--emerald-d)}
+.sr-ced-msg.err{color:var(--danger);font-weight:600}
 .sr-submit{width:100%;justify-content:center;font-size:15px;padding:13px}
 .sr-foot{text-align:center;font-size:11px;color:#9aa8a0;margin-top:16px}
 .sr-done{text-align:center;padding:20px 0}
@@ -1509,6 +1512,26 @@ async function dbGetBadgeByCode(codigo){
   if(snap.empty) return null;
   const d = snap.docs[0];
   return {id:d.id, ...d.data()};
+}
+/* Busca un carnet por cédula (normalizada, solo dígitos). Sirve para evitar
+   que un colaborador se registre dos veces con la misma cédula. */
+function normalizeCedula(c){ return String(c||"").replace(/\D/g,""); }
+async function dbGetBadgeByCedula(cedula){
+  const norm = normalizeCedula(cedula);
+  if(!norm) return null;
+  if(state.demo){
+    return (state.demoStore.badges||[]).find(b=>normalizeCedula(b.cedula)===norm) || null;
+  }
+  // La cédula puede estar guardada con o sin formato, así que traemos las
+  // coincidencias por valor exacto y, si no, comparamos normalizando.
+  const snap = await db.collection(COL_BADGES).where("cedula","==",String(cedula||"").trim()).limit(1).get();
+  trackOps(Math.max(1,snap.size), 0);
+  if(!snap.empty){ const d=snap.docs[0]; return {id:d.id, ...d.data()}; }
+  // respaldo: comparar normalizado sobre toda la colección
+  const all = await db.collection(COL_BADGES).get();
+  trackOps(Math.max(1,all.size), 0);
+  const hit = all.docs.find(d=>normalizeCedula((d.data()||{}).cedula)===norm);
+  return hit ? {id:hit.id, ...hit.data()} : null;
 }
 async function dbCreateBadge(b){
   if(state.demo){ b.id="g_"+Date.now(); (state.demoStore.badges=state.demoStore.badges||[]).push(b); demoSave(); return b; }
@@ -4041,10 +4064,10 @@ function renderSelfRegister(){
     </div>
     <div class="sr-fields">
       <div class="field"><label>Nombre completo *</label><input id="srNombre" placeholder="Nombre y apellidos"></div>
-      <div class="field"><label>Cédula *</label><input id="srCedula" placeholder="Ej. 304400086" inputmode="numeric"></div>
+      <div class="field"><label>Cédula *</label><input id="srCedula" placeholder="Ej. 304400086" inputmode="numeric"><small class="sr-ced-msg" id="srCedMsg"></small></div>
       <div class="field"><label>Compañía *</label><select id="srCompania">${BADGE_COMPANIES.map(c=>`<option>${esc(c)}</option>`).join("")}</select></div>
       <div class="field"><label>Puesto *</label><input id="srPuesto" placeholder="Ej. Operario de empaque"></div>
-      <div class="field"><label>Fecha de ingreso</label><input type="date" id="srIngreso"></div>
+      <div class="field"><label>Fecha de ingreso *</label><input type="date" id="srIngreso"></div>
     </div>
     <button class="btn solid sr-submit" id="srSubmit">${ICON.check} Enviar registro</button>
     <p class="sr-foot">B&amp;C Exportadores del Valle de Ujarrás</p>
@@ -4073,18 +4096,83 @@ function renderSelfRegister(){
     reader.readAsDataURL(file);
   });
 
+  // Pantalla que se muestra si la cédula ya está registrada
+  const mostrarYaRegistrado=(existente)=>{
+    $("#srCard").innerHTML=`
+      <div class="sr-done">
+        <div class="sr-done-ico" style="background:var(--surface-2);color:var(--warn)">${ICON.info}</div>
+        <h1>Ya te registraste</h1>
+        <p>La cédula <b>${esc(existente.cedula)}</b> ya tiene un carnet registrado a nombre de <b>${esc(existente.nombre)}</b>. No es necesario volver a registrarse.</p>
+        <p class="sr-done-hint">Si creés que es un error, comunicate con el Departamento de Sistemas.</p>
+      </div>`;
+  };
+
+  // Nombre: primera letra de cada palabra en mayúscula (respeta partículas)
+  const capitalizarNombre=(s)=>{
+    const chicas=["de","del","la","las","los","y","da","do","dos","e"];
+    return s.toLowerCase().replace(/\s+/g," ").split(" ").map((p,i)=>{
+      if(!p) return p;
+      if(i>0 && chicas.includes(p)) return p; // partículas en minúscula, salvo al inicio
+      return p.charAt(0).toUpperCase()+p.slice(1);
+    }).join(" ");
+  };
+  const nomInput=$("#srNombre");
+  nomInput.addEventListener("input",()=>{
+    // permitir solo letras (incluye acentos y ñ) y espacios
+    let v=nomInput.value.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]/g,"");
+    const pos=nomInput.selectionStart;
+    v=capitalizarNombre(v);
+    nomInput.value=v;
+    try{ nomInput.setSelectionRange(pos,pos); }catch(e){}
+  });
+
+  // Cédula: solo números (sin signos ni letras)
+  const cedOnly=$("#srCedula");
+  cedOnly.addEventListener("input",()=>{
+    const clean=cedOnly.value.replace(/\D/g,"");
+    if(cedOnly.value!==clean) cedOnly.value=clean;
+  });
+
+  // Aviso en vivo mientras escribe la cédula (con pequeño retraso)
+  let cedTimer=null, cedYaExiste=false;
+  const cedInput=$("#srCedula"), cedMsg=$("#srCedMsg");
+  cedInput.addEventListener("input",()=>{
+    cedYaExiste=false; cedMsg.textContent=""; cedMsg.className="sr-ced-msg";
+    const val=cedInput.value.trim();
+    if(normalizeCedula(val).length<6) return; // esperar a que haya una cédula razonable
+    if(cedTimer) clearTimeout(cedTimer);
+    cedTimer=setTimeout(async()=>{
+      try{
+        const ex=await dbGetBadgeByCedula(val);
+        if(ex){ cedYaExiste=true; cedMsg.textContent="Esta cédula ya está registrada."; cedMsg.className="sr-ced-msg err"; }
+        else { cedMsg.textContent="Cédula disponible."; cedMsg.className="sr-ced-msg ok"; }
+      }catch(e){ /* silencioso: se validará igual al enviar */ }
+    }, 500);
+  });
+
   $("#srSubmit").onclick=async()=>{
     const nombre=$("#srNombre").value.trim();
     const cedula=$("#srCedula").value.trim();
     const compania=$("#srCompania").value;
     const puesto=$("#srPuesto").value.trim();
     const fechaIngreso=$("#srIngreso").value;
-    if(!nombre||!cedula||!puesto){ toast("Completá nombre, cédula y puesto","warn"); return; }
+    // Todos los campos son obligatorios
+    if(!nombre){ toast("Escribí tu nombre completo","warn"); $("#srNombre").focus(); return; }
+    if(!cedula){ toast("Escribí tu cédula","warn"); $("#srCedula").focus(); return; }
+    if(normalizeCedula(cedula).length<9){ toast("La cédula debe tener al menos 9 dígitos","warn"); $("#srCedula").focus(); return; }
+    if(!compania){ toast("Seleccioná tu compañía","warn"); return; }
+    if(!puesto){ toast("Escribí tu puesto","warn"); $("#srPuesto").focus(); return; }
+    if(!fechaIngreso){ toast("Indicá tu fecha de ingreso","warn"); $("#srIngreso").focus(); return; }
     if(!fotoData){ toast("Subí tu foto para continuar","warn"); return; }
+    if(cedYaExiste){ mostrarYaRegistrado({cedula, nombre}); return; }
 
     const btn=$("#srSubmit"); btn.disabled=true;
     btn.innerHTML='<span class="spinner sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.4)"></span> Enviando…';
     try{
+      // validación final: evitar doble registro por cédula (cualquier estado)
+      const existente=await dbGetBadgeByCedula(cedula);
+      if(existente){ mostrarYaRegistrado(existente); return; }
+
       const codigo=await nextBadgeCode(compania);
       const fechaVence = fechaIngreso ? addYearsISO(fechaIngreso, 10) : "";
       const nb={nombre,cedula,puesto,compania,fechaIngreso,fechaVence,foto:fotoData,codigo,
