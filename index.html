@@ -439,6 +439,11 @@ a{color:var(--emerald);text-decoration:none}
 .bi-actions{display:flex;gap:5px;flex-shrink:0}
 .bi-status{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
 .bi-status.pending{background:rgba(217,138,31,.16);color:var(--warn)}
+.bi-status.disabled{background:rgba(192,57,43,.14);color:#b23b2e}
+.badge-item.is-disabled{opacity:.72;border-color:rgba(192,57,43,.3)}
+.badge-item.is-disabled .bi-photo img{filter:grayscale(.7)}
+.icon-btn.disable:hover{background:rgba(192,57,43,.12);color:#b23b2e}
+.icon-btn.enable:hover{background:rgba(31,157,99,.12);color:var(--emerald-d)}
 .badge-item.is-pending{border-color:rgba(217,138,31,.4);background:rgba(217,138,31,.04)}
 .tbl tr.row-pending td{background:rgba(217,138,31,.07)}
 .tbl tr.row-vencido td{background:rgba(192,57,43,.05)}
@@ -3185,8 +3190,13 @@ async function renderBadges(){
     list.innerHTML=`<div class="badge-grid">`+f.map(b=>{
       const est=estadoDe(b);
       const pendiente = est==="pendiente";
+      const deshab = est==="deshabilitado";
+      const esAdmin = state.user.rol==="admin";
+      let statusChip = "";
+      if(pendiente) statusChip = `<span class="bi-status pending">Pendiente</span>`;
+      else if(deshab) statusChip = `<span class="bi-status disabled">Deshabilitado</span>`;
       return `
-      <div class="badge-item ${pendiente?'is-pending':''}">
+      <div class="badge-item ${pendiente?'is-pending':''} ${deshab?'is-disabled':''}">
         <div class="bi-photo">${b.foto?`<img src="${b.foto}" alt="">`:`<span class="bi-noimg">${ICON.user}</span>`}</div>
         <div class="bi-info">
           <b>${esc(b.nombre)}</b>
@@ -3194,14 +3204,17 @@ async function renderBadges(){
           <div class="bi-meta">
             <span class="bi-code">${esc(b.codigo)}</span>
             <span class="bi-comp">${esc(b.compania||"")}</span>
-            ${pendiente?`<span class="bi-status pending">Pendiente</span>`:``}
+            ${statusChip}
           </div>
         </div>
         <div class="bi-actions">
           ${pendiente?`<button class="btn solid xs" title="Aprobar y activar" onclick="badgeApprove('${b.id}')">${ICON.check} Aprobar</button>`:``}
           <button class="icon-btn view" title="Ver / imprimir gafete" onclick="_badgeView('${b.id}')">${ICON.eye}</button>
           <button class="icon-btn edit" title="Editar" onclick="_badgeEdit('${b.id}')">${ICON.edit}</button>
-          <button class="icon-btn del" title="Eliminar" onclick="badgeDel('${b.id}')">${ICON.trash}</button>
+          ${pendiente?``:(deshab
+            ? `<button class="icon-btn enable" title="Habilitar carnet" onclick="badgeToggle('${b.id}')">${ICON.check}</button>`
+            : `<button class="icon-btn disable" title="Deshabilitar carnet" onclick="badgeToggle('${b.id}')">${ICON.lock}</button>`)}
+          ${esAdmin?`<button class="icon-btn del" title="Eliminar" onclick="badgeDel('${b.id}')">${ICON.trash}</button>`:``}
         </div>
       </div>`;
     }).join("")+`</div>`;
@@ -3222,6 +3235,7 @@ async function renderBadges(){
   window._badgeEdit=id=>badgeEditor(badges.find(b=>b.id===id));
   window._badgeView=id=>badgeView(badges.find(b=>b.id===id));
   window.badgeDel=id=>{
+    if(state.user.rol!=="admin"){ toast("Solo el administrador puede eliminar gafetes","warn"); return; }
     const b=badges.find(x=>x.id===id);
     const modal=el("div","modal-bg show");
     modal.innerHTML=`<div class="modal narrow"><div class="modal-body"><div class="confirm-body">
@@ -3260,6 +3274,36 @@ async function renderBadges(){
         b.estado="activo";
         close(); toast("Carnet aprobado","ok"); paint();
       }catch(e){ console.error(e); btn.disabled=false; btn.innerHTML=`${ICON.check} Aprobar`; toast("Error al aprobar","err"); }
+    };
+  };
+
+  // habilitar / deshabilitar un carnet (alterna entre activo y deshabilitado)
+  window.badgeToggle=id=>{
+    const b=badges.find(x=>x.id===id); if(!b) return;
+    const estActual = b.estado || "activo";
+    const deshabilitar = estActual!=="deshabilitado";
+    const nuevo = deshabilitar ? "deshabilitado" : "activo";
+    const modal=el("div","modal-bg show");
+    modal.innerHTML=`<div class="modal narrow"><div class="modal-body"><div class="confirm-body">
+      <div class="confirm-ico" style="background:${deshabilitar?'var(--surface-2)':'var(--grad-emerald)'};color:${deshabilitar?'var(--warn)':'#fff'}">${deshabilitar?ICON.lock:ICON.check}</div>
+      <h3>${deshabilitar?"¿Deshabilitar carnet?":"¿Habilitar carnet?"}</h3>
+      <p>${deshabilitar
+        ? `El carnet de <b>${esc(b.nombre)}</b> (${esc(b.codigo)}) quedará <b>bloqueado</b>. Al verificarlo aparecerá como deshabilitado.`
+        : `El carnet de <b>${esc(b.nombre)}</b> (${esc(b.codigo)}) volverá a estar <b>activo</b> y verificable.`}</p></div></div>
+      <div class="modal-foot"><button class="btn ghost" id="tgC">Cancelar</button><button class="btn ${deshabilitar?'danger':'solid'}" id="tgO">${deshabilitar?ICON.lock+" Deshabilitar":ICON.check+" Habilitar"}</button></div></div>`;
+    document.body.appendChild(modal);
+    const close=()=>modal.remove();
+    $("#tgC").onclick=close; modal.addEventListener("mousedown",e=>{if(e.target===modal)close();});
+    $("#tgO").onclick=async()=>{
+      const btn=$("#tgO"); btn.disabled=true; btn.innerHTML='<span class="spinner sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.4)"></span> Guardando…';
+      try{
+        const patch={estado:nuevo};
+        if(deshabilitar){ patch.deshabilitadoPor=state.user.usuario; patch.deshabilitadoEn=new Date().toISOString(); }
+        else { patch.habilitadoPor=state.user.usuario; patch.habilitadoEn=new Date().toISOString(); }
+        await dbUpdateBadge(id,patch);
+        b.estado=nuevo;
+        close(); toast(deshabilitar?"Carnet deshabilitado":"Carnet habilitado","ok"); paint();
+      }catch(e){ console.error(e); btn.disabled=false; btn.innerHTML=deshabilitar?`${ICON.lock} Deshabilitar`:`${ICON.check} Habilitar`; toast("Error al guardar","err"); }
     };
   };
 
@@ -3332,8 +3376,9 @@ function renderVerifyBadge(){
     }
     const vig=badgeVigente(b);
     const pendiente = (b.estado||"activo")==="pendiente";
+    const deshabilitado = (b.estado||"activo")==="deshabilitado";
     // Registrar en el historial de verificaciones (no bloquea la vista)
-    const estado = pendiente ? "pendiente" : (vig===false ? "vencido" : (vig===true ? "vigente" : "sin_fecha"));
+    const estado = deshabilitado ? "deshabilitado" : (pendiente ? "pendiente" : (vig===false ? "vencido" : (vig===true ? "vigente" : "sin_fecha")));
     dbLogVerification({
       codigo: b.codigo,
       nombre: b.nombre,
@@ -3346,15 +3391,17 @@ function renderVerifyBadge(){
       fecha: new Date().toISOString()
     }).catch(e=>console.error("log verificación:",e)).then(()=>{ if(window.__reloadVerifyHist) window.__reloadVerifyHist(); });
     const qr=makeQRDataURL(badgeVerifyURL(b.codigo),200);
-    const banner = pendiente
-      ? `<div class="vb-banner vencido">${ICON.warn} CARNET PENDIENTE — aún no aprobado por Sistemas</div>`
-      : (vig===false
-        ? `<div class="vb-banner vencido">${ICON.warn} CARNET VENCIDO — venció el ${esc(fmtCarnetDate(b.fechaVence))}</div>`
-        : (vig===true
-            ? `<div class="vb-banner vigente">${ICON.check} CARNET VIGENTE — válido hasta ${esc(fmtCarnetDate(b.fechaVence))}</div>`
-            : `<div class="vb-banner neutro">${ICON.info} Sin fecha de vencimiento registrada</div>`));
+    const banner = deshabilitado
+      ? `<div class="vb-banner vencido">${ICON.lock} CARNET DESHABILITADO — bloqueado por Sistemas</div>`
+      : (pendiente
+        ? `<div class="vb-banner vencido">${ICON.warn} CARNET PENDIENTE — aún no aprobado por Sistemas</div>`
+        : (vig===false
+          ? `<div class="vb-banner vencido">${ICON.warn} CARNET VENCIDO — venció el ${esc(fmtCarnetDate(b.fechaVence))}</div>`
+          : (vig===true
+              ? `<div class="vb-banner vigente">${ICON.check} CARNET VIGENTE — válido hasta ${esc(fmtCarnetDate(b.fechaVence))}</div>`
+              : `<div class="vb-banner neutro">${ICON.info} Sin fecha de vencimiento registrada</div>`)));
     box.innerHTML=`
-      <div class="vb-card ${pendiente||vig===false?'is-vencido':(vig===true?'is-vigente':'')}">
+      <div class="vb-card ${deshabilitado||pendiente||vig===false?'is-vencido':(vig===true?'is-vigente':'')}">
         ${banner}
         <div class="vb-body">
           <div class="vb-photo">${b.foto?`<img src="${b.foto}">`:`<div class="vb-photo-empty">${ICON.user}</div>`}</div>
@@ -3459,13 +3506,15 @@ function renderVerifyBadge(){
   let histQuery="";
   const soloSuyas = state.user.rol==="seguridad";
 
-  const histEstadoBadge=(e)=> e==="pendiente"
+  const histEstadoBadge=(e)=> e==="deshabilitado"
+    ? `<span class="badge-st out" style="background:rgba(192,57,43,.12);color:#b23b2e">Deshabilitado</span>`
+    : (e==="pendiente"
     ? `<span class="badge-st" style="background:rgba(217,138,31,.16);color:var(--warn)">Pendiente</span>`
     : (e==="vencido"
       ? `<span class="badge-st out" style="background:rgba(192,57,43,.12);color:#b23b2e">Vencido</span>`
       : (e==="vigente"
           ? `<span class="badge-st complete">Vigente</span>`
-          : `<span class="badge-st partial">Sin fecha</span>`));
+          : `<span class="badge-st partial">Sin fecha</span>`)));
   const histFecha=(iso)=>{
     if(!iso) return "—";
     try{ const d=new Date(iso); const f=d.toLocaleDateString("es-CR");
@@ -3489,7 +3538,7 @@ function renderVerifyBadge(){
         <th class="hide-sm">Cédula</th><th class="hide-sm">Compañía</th>
         <th>Estado</th>${soloSuyas?'':'<th>Verificó</th>'}
       </tr></thead>
-      <tbody>${f.map(r=>`<tr class="${r.estado==='pendiente'?'row-pending':(r.estado==='vencido'?'row-vencido':'')}">
+      <tbody>${f.map(r=>`<tr class="${r.estado==='pendiente'?'row-pending':((r.estado==='vencido'||r.estado==='deshabilitado')?'row-vencido':'')}">
         <td>${esc(histFecha(r.fecha))}</td>
         <td><span class="consec">${esc(r.codigo)}</span></td>
         <td>${esc(r.nombre)}</td>
@@ -3564,13 +3613,15 @@ async function renderVerifyLog(){
   let rows=[];
   let query="";
 
-  const estadoBadge=(e)=> e==="pendiente"
+  const estadoBadge=(e)=> e==="deshabilitado"
+    ? `<span class="badge-st out" style="background:rgba(192,57,43,.12);color:#b23b2e">Deshabilitado</span>`
+    : (e==="pendiente"
     ? `<span class="badge-st" style="background:rgba(217,138,31,.16);color:var(--warn)">Pendiente</span>`
     : (e==="vencido"
       ? `<span class="badge-st out" style="background:rgba(192,57,43,.12);color:#b23b2e">Vencido</span>`
       : (e==="vigente"
           ? `<span class="badge-st complete">Vigente</span>`
-          : `<span class="badge-st partial">Sin fecha</span>`));
+          : `<span class="badge-st partial">Sin fecha</span>`)));
 
   const fmtFechaHora=(iso)=>{
     if(!iso) return "—";
@@ -3599,7 +3650,7 @@ async function renderVerifyLog(){
         <th class="hide-sm">Puesto</th><th class="hide-sm">Compañía</th>
         <th>Estado</th>${soloSuyas?'':'<th>Verificó</th>'}
       </tr></thead>
-      <tbody>${f.map(r=>`<tr class="${r.estado==='pendiente'?'row-pending':(r.estado==='vencido'?'row-vencido':'')}">
+      <tbody>${f.map(r=>`<tr class="${r.estado==='pendiente'?'row-pending':((r.estado==='vencido'||r.estado==='deshabilitado')?'row-vencido':'')}">
         <td>${esc(fmtFechaHora(r.fecha))}</td>
         <td><span class="consec">${esc(r.codigo)}</span></td>
         <td>${esc(r.nombre)}</td>
@@ -4082,14 +4133,17 @@ async function renderPublicBadge(codigo){
 
   const vig = badgeVigente(b);
   const pendiente = (b.estado||"activo")==="pendiente";
+  const deshabilitado = (b.estado||"activo")==="deshabilitado";
   const qr = makeQRDataURL(badgeVerifyURL(b.codigo), 200);
-  const statusHtml = pendiente
+  const statusHtml = deshabilitado
+    ? `<div class="verify-status invalid">${ICON.lock}<div><b>Carnet deshabilitado</b><span>Este carnet fue bloqueado por el Departamento de Sistemas.</span></div></div>`
+    : (pendiente
     ? `<div class="verify-status invalid">${ICON.warn}<div><b>Carnet pendiente</b><span>Aún no ha sido aprobado por el Departamento de Sistemas.</span></div></div>`
     : (vig===null
         ? ""
         : (vig
             ? `<div class="verify-status ok">${ICON.check}<div><b>Carnet vigente</b><span>Válido hasta ${esc(fmtCarnetDate(b.fechaVence))}</span></div></div>`
-            : `<div class="verify-status invalid">${ICON.warn}<div><b>Carnet vencido</b><span>Venció el ${esc(fmtCarnetDate(b.fechaVence))}</span></div></div>`));
+            : `<div class="verify-status invalid">${ICON.warn}<div><b>Carnet vencido</b><span>Venció el ${esc(fmtCarnetDate(b.fechaVence))}</span></div></div>`)));
 
   wrap.innerHTML=`
     <div class="verify-head"><img src="${LOGOS.byc}" class="verify-logo"></div>
