@@ -4067,7 +4067,7 @@ function renderSelfRegister(){
       <div class="field"><label>Cédula *</label><input id="srCedula" placeholder="Ej. 304400086" inputmode="numeric"><small class="sr-ced-msg" id="srCedMsg"></small></div>
       <div class="field"><label>Compañía *</label><select id="srCompania">${BADGE_COMPANIES.map(c=>`<option>${esc(c)}</option>`).join("")}</select></div>
       <div class="field"><label>Puesto *</label><input id="srPuesto" placeholder="Ej. Operario de empaque"></div>
-      <div class="field"><label>Fecha de ingreso *</label><input type="date" id="srIngreso"></div>
+      <div class="field"><label>Fecha de ingreso a la compañía *</label><input type="date" id="srIngreso" max="${todayISO()}"><small class="fhint">La fecha en que empezaste a trabajar en la empresa (no la de hoy).</small></div>
     </div>
     <button class="btn solid sr-submit" id="srSubmit">${ICON.check} Enviar registro</button>
     <p class="sr-foot">B&amp;C Exportadores del Valle de Ujarrás</p>
@@ -4162,7 +4162,8 @@ function renderSelfRegister(){
     if(normalizeCedula(cedula).length<9){ toast("La cédula debe tener al menos 9 dígitos","warn"); $("#srCedula").focus(); return; }
     if(!compania){ toast("Seleccioná tu compañía","warn"); return; }
     if(!puesto){ toast("Escribí tu puesto","warn"); $("#srPuesto").focus(); return; }
-    if(!fechaIngreso){ toast("Indicá tu fecha de ingreso","warn"); $("#srIngreso").focus(); return; }
+    if(!fechaIngreso){ toast("Indicá tu fecha de ingreso a la compañía","warn"); $("#srIngreso").focus(); return; }
+    if(fechaIngreso > todayISO()){ toast("La fecha de ingreso no puede ser futura","warn"); $("#srIngreso").focus(); return; }
     if(!fotoData){ toast("Subí tu foto para continuar","warn"); return; }
     if(cedYaExiste){ mostrarYaRegistrado({cedula, nombre}); return; }
 
