@@ -440,6 +440,8 @@ a{color:var(--emerald);text-decoration:none}
 .bi-status{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
 .bi-status.pending{background:rgba(217,138,31,.16);color:var(--warn)}
 .badge-item.is-pending{border-color:rgba(217,138,31,.4);background:rgba(217,138,31,.04)}
+.tbl tr.row-pending td{background:rgba(217,138,31,.07)}
+.tbl tr.row-vencido td{background:rgba(192,57,43,.05)}
 .btab-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:20px;background:var(--warn);color:#fff;font-size:11px;font-weight:800;margin-left:2px}
 
 /* QR de autoregistro (modal) */
@@ -3457,11 +3459,13 @@ function renderVerifyBadge(){
   let histQuery="";
   const soloSuyas = state.user.rol==="seguridad";
 
-  const histEstadoBadge=(e)=> e==="vencido"
-    ? `<span class="badge-st out" style="background:rgba(192,57,43,.12);color:#b23b2e">Vencido</span>`
-    : (e==="vigente"
-        ? `<span class="badge-st complete">Vigente</span>`
-        : `<span class="badge-st partial">Sin fecha</span>`);
+  const histEstadoBadge=(e)=> e==="pendiente"
+    ? `<span class="badge-st" style="background:rgba(217,138,31,.16);color:var(--warn)">Pendiente</span>`
+    : (e==="vencido"
+      ? `<span class="badge-st out" style="background:rgba(192,57,43,.12);color:#b23b2e">Vencido</span>`
+      : (e==="vigente"
+          ? `<span class="badge-st complete">Vigente</span>`
+          : `<span class="badge-st partial">Sin fecha</span>`));
   const histFecha=(iso)=>{
     if(!iso) return "—";
     try{ const d=new Date(iso); const f=d.toLocaleDateString("es-CR");
@@ -3485,7 +3489,7 @@ function renderVerifyBadge(){
         <th class="hide-sm">Cédula</th><th class="hide-sm">Compañía</th>
         <th>Estado</th>${soloSuyas?'':'<th>Verificó</th>'}
       </tr></thead>
-      <tbody>${f.map(r=>`<tr>
+      <tbody>${f.map(r=>`<tr class="${r.estado==='pendiente'?'row-pending':(r.estado==='vencido'?'row-vencido':'')}">
         <td>${esc(histFecha(r.fecha))}</td>
         <td><span class="consec">${esc(r.codigo)}</span></td>
         <td>${esc(r.nombre)}</td>
@@ -3560,11 +3564,13 @@ async function renderVerifyLog(){
   let rows=[];
   let query="";
 
-  const estadoBadge=(e)=> e==="vencido"
-    ? `<span class="badge-st out" style="background:rgba(192,57,43,.12);color:#b23b2e">Vencido</span>`
-    : (e==="vigente"
-        ? `<span class="badge-st complete">Vigente</span>`
-        : `<span class="badge-st partial">Sin fecha</span>`);
+  const estadoBadge=(e)=> e==="pendiente"
+    ? `<span class="badge-st" style="background:rgba(217,138,31,.16);color:var(--warn)">Pendiente</span>`
+    : (e==="vencido"
+      ? `<span class="badge-st out" style="background:rgba(192,57,43,.12);color:#b23b2e">Vencido</span>`
+      : (e==="vigente"
+          ? `<span class="badge-st complete">Vigente</span>`
+          : `<span class="badge-st partial">Sin fecha</span>`));
 
   const fmtFechaHora=(iso)=>{
     if(!iso) return "—";
@@ -3593,7 +3599,7 @@ async function renderVerifyLog(){
         <th class="hide-sm">Puesto</th><th class="hide-sm">Compañía</th>
         <th>Estado</th>${soloSuyas?'':'<th>Verificó</th>'}
       </tr></thead>
-      <tbody>${f.map(r=>`<tr>
+      <tbody>${f.map(r=>`<tr class="${r.estado==='pendiente'?'row-pending':(r.estado==='vencido'?'row-vencido':'')}">
         <td>${esc(fmtFechaHora(r.fecha))}</td>
         <td><span class="consec">${esc(r.codigo)}</span></td>
         <td>${esc(r.nombre)}</td>
@@ -4043,12 +4049,15 @@ async function renderPublicBadge(codigo){
   }
 
   const vig = badgeVigente(b);
+  const pendiente = (b.estado||"activo")==="pendiente";
   const qr = makeQRDataURL(badgeVerifyURL(b.codigo), 200);
-  const statusHtml = vig===null
-    ? ""
-    : (vig
-        ? `<div class="verify-status ok">${ICON.check}<div><b>Carnet vigente</b><span>Válido hasta ${esc(fmtCarnetDate(b.fechaVence))}</span></div></div>`
-        : `<div class="verify-status invalid">${ICON.warn}<div><b>Carnet vencido</b><span>Venció el ${esc(fmtCarnetDate(b.fechaVence))}</span></div></div>`);
+  const statusHtml = pendiente
+    ? `<div class="verify-status invalid">${ICON.warn}<div><b>Carnet pendiente</b><span>Aún no ha sido aprobado por el Departamento de Sistemas.</span></div></div>`
+    : (vig===null
+        ? ""
+        : (vig
+            ? `<div class="verify-status ok">${ICON.check}<div><b>Carnet vigente</b><span>Válido hasta ${esc(fmtCarnetDate(b.fechaVence))}</span></div></div>`
+            : `<div class="verify-status invalid">${ICON.warn}<div><b>Carnet vencido</b><span>Venció el ${esc(fmtCarnetDate(b.fechaVence))}</span></div></div>`));
 
   wrap.innerHTML=`
     <div class="verify-head"><img src="${LOGOS.byc}" class="verify-logo"></div>
