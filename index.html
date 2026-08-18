@@ -423,21 +423,23 @@ a{color:var(--emerald);text-decoration:none}
 #bootLoader p{font-family:var(--display);font-weight:600;color:var(--ink-soft);letter-spacing:.3px;animation:pulse 1.6s infinite}
 
 /* ===== MÓDULO DE GAFETES ===== */
-.badge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
-.badge-item{display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:13px;box-shadow:var(--shadow-sm);transition:.18s}
+.badge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.badge-item{display:flex;align-items:stretch;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow-sm);transition:.18s}
 .badge-item:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
-.bi-photo{width:52px;height:60px;flex-shrink:0;border-radius:9px;overflow:hidden;background:var(--surface-2);display:grid;place-items:center}
-.bi-photo img{width:100%;height:100%;object-fit:cover}
-.bi-noimg{color:var(--muted-2);width:26px;height:26px;display:block}
-.bi-noimg svg{width:26px;height:26px}
-.bi-info{flex:1;min-width:0}
-.bi-info b{display:block;font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bi-info small{color:var(--muted);font-size:12px;display:block;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bi-meta{display:flex;gap:6px;flex-wrap:wrap}
-.bi-code{font-size:11px;font-weight:700;background:var(--emerald-l);color:var(--emerald-d);padding:2px 8px;border-radius:20px;letter-spacing:.4px}
-.bi-comp{font-size:11px;color:var(--muted-2);background:var(--surface-2);padding:2px 8px;border-radius:20px}
-.bi-actions{display:flex;gap:5px;flex-shrink:0}
-.bi-status{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+.bi-photo{width:64px;height:84px;flex-shrink:0;border-radius:10px;overflow:hidden;background:var(--surface-2);display:grid;place-items:center}
+.bi-photo img{width:100%;height:100%;object-fit:cover;object-position:center top}
+.bi-noimg{color:var(--muted-2);width:28px;height:28px;display:block}
+.bi-noimg svg{width:28px;height:28px}
+.bi-info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px;padding-right:6px}
+.bi-info b{display:block;font-size:14.5px;color:var(--ink);line-height:1.25;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.bi-info small{color:var(--muted);font-size:12px;display:block;margin:2px 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bi-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.bi-code{font-size:11px;font-weight:700;background:var(--emerald-l);color:var(--emerald-d);padding:3px 9px;border-radius:20px;letter-spacing:.4px;white-space:nowrap}
+.bi-comp{font-size:11px;color:var(--muted-2);background:var(--surface-2);padding:3px 9px;border-radius:20px;white-space:nowrap}
+.bi-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0;justify-content:center;padding-left:12px;border-left:1px solid var(--line)}
+.bi-actions .icon-btn{width:34px;height:34px}
+.bi-actions .btn.xs{white-space:nowrap;margin-bottom:2px}
+.bi-status{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
 .bi-status.pending{background:rgba(217,138,31,.16);color:var(--warn)}
 .bi-status.disabled{background:rgba(192,57,43,.14);color:#b23b2e}
 .badge-item.is-disabled{opacity:.72;border-color:rgba(192,57,43,.3)}
