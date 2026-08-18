@@ -437,6 +437,42 @@ a{color:var(--emerald);text-decoration:none}
 .bi-code{font-size:11px;font-weight:700;background:var(--emerald-l);color:var(--emerald-d);padding:2px 8px;border-radius:20px;letter-spacing:.4px}
 .bi-comp{font-size:11px;color:var(--muted-2);background:var(--surface-2);padding:2px 8px;border-radius:20px}
 .bi-actions{display:flex;gap:5px;flex-shrink:0}
+.bi-status{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+.bi-status.pending{background:rgba(217,138,31,.16);color:var(--warn)}
+.badge-item.is-pending{border-color:rgba(217,138,31,.4);background:rgba(217,138,31,.04)}
+.btab-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:20px;background:var(--warn);color:#fff;font-size:11px;font-weight:800;margin-left:2px}
+
+/* QR de autoregistro (modal) */
+.rq-box{display:flex;flex-direction:column;align-items:center;gap:16px;padding:8px 0}
+.rq-qr{background:#fff;padding:12px;border-radius:14px;border:1px solid var(--line)}
+.rq-qr img{width:220px;height:220px;display:block}
+.rq-link{display:flex;gap:8px;width:100%;max-width:360px}
+.rq-link input{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;background:var(--surface-2);color:var(--ink-soft);font-family:var(--font)}
+
+/* Autoregistro público (colaborador) */
+.sr-screen{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;background:linear-gradient(160deg,#eef4ef,#e3efe6)}
+.sr-card{width:100%;max-width:440px;background:#fff;border-radius:22px;box-shadow:0 12px 40px rgba(20,50,30,.16);padding:26px 24px}
+.sr-head{text-align:center;margin-bottom:20px}
+.sr-logo{width:150px;object-fit:contain;margin-bottom:10px}
+.sr-head h1{font-size:22px;color:#12251a;margin-bottom:6px}
+.sr-head p{font-size:13.5px;color:#5a6b61;line-height:1.5}
+.sr-photo-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:20px}
+.sr-photo{width:150px;height:200px;border-radius:12px;overflow:hidden;background:var(--surface-2);border:2px dashed var(--line);display:grid;place-items:center}
+.sr-photo img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block}
+.sr-photo-empty{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted-2);text-align:center;padding:0 12px}
+.sr-photo-empty svg{width:38px;height:38px}
+.sr-photo-empty span{font-size:12px}
+.sr-photo-btn{cursor:pointer}
+.sr-fields{display:flex;flex-direction:column;gap:13px;margin-bottom:20px}
+.sr-submit{width:100%;justify-content:center;font-size:15px;padding:13px}
+.sr-foot{text-align:center;font-size:11px;color:#9aa8a0;margin-top:16px}
+.sr-done{text-align:center;padding:20px 0}
+.sr-done-ico{width:72px;height:72px;border-radius:50%;background:var(--grad-emerald);display:grid;place-items:center;margin:0 auto 18px;color:#fff}
+.sr-done-ico svg{width:38px;height:38px}
+.sr-done h1{font-size:22px;color:#12251a;margin-bottom:10px}
+.sr-done p{font-size:14px;color:#5a6b61;line-height:1.5;max-width:340px;margin:0 auto 8px}
+.sr-done-code{display:inline-block;margin:14px 0;font-size:18px;font-weight:800;letter-spacing:1px;background:var(--emerald-l);color:var(--emerald-d);padding:8px 20px;border-radius:12px}
+.sr-done-hint{font-size:12px;color:var(--muted-2)}
 
 /* Editor */
 .modal.wide{max-width:680px}
@@ -3100,30 +3136,55 @@ async function renderBadges(){
       <div class="search-box"><span class="ico">${ICON.search}</span><input id="badgeSearch" placeholder="Buscar por nombre, cédula o código…"></div>
       <button class="btn ghost" id="scanBadge">${ICON.scan} Buscar por código</button>
       <button class="btn ghost" id="histBadge">${ICON.doc} Historial</button>
+      <button class="btn ghost" id="regQR">${ICON.badge} QR de registro</button>
       <button class="btn solid" id="newBadge">${ICON.plus} Nuevo gafete</button>
+    </div>
+    <div class="exit-tabs" id="badgeTabs">
+      <button class="exit-tab active" data-btab="todos">Todos</button>
+      <button class="exit-tab" data-btab="pendiente">Pendientes <span class="btab-count" id="pendCount"></span></button>
+      <button class="exit-tab" data-btab="activo">Activos</button>
     </div>
     <div id="badgeList"><div class="loader-wrap"><div class="spinner"></div><p>Cargando gafetes…</p></div></div>`;
 
   $("#newBadge").onclick=()=>badgeEditor(null);
   $("#scanBadge").onclick=()=>badgeScanner();
   $("#histBadge").onclick=()=>{ stopRealtime(); renderVerifyLog(); };
+  $("#regQR").onclick=()=>showRegisterQR();
 
   let badges=[];
   let query="";
+  let btab="todos";
+
+  const estadoDe=(b)=> b.estado || "activo"; // gafetes viejos sin estado = activos
 
   const paint=()=>{
     if(state.view!=="badges") return;
     const list=$("#badgeList");
     if(!list) return;
-    const f=badges.filter(b=>!query ||
+    // conteo de pendientes en la pestaña
+    const pend=badges.filter(b=>estadoDe(b)==="pendiente").length;
+    const pc=$("#pendCount"); if(pc) pc.textContent = pend?pend:"";
+    if(pc) pc.style.display = pend?"inline-flex":"none";
+
+    let base=badges;
+    if(btab==="pendiente") base=badges.filter(b=>estadoDe(b)==="pendiente");
+    else if(btab==="activo") base=badges.filter(b=>estadoDe(b)==="activo");
+
+    const f=base.filter(b=>!query ||
       (b.nombre+" "+b.cedula+" "+b.codigo+" "+(b.puesto||"")+" "+(b.compania||"")).toLowerCase().includes(query));
     if(badges.length===0){
       list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.badge}</div><h3>Sin gafetes todavía</h3><p>Creá el primer carnet de un colaborador.</p><button class="btn solid" onclick="badgeEditor(null)">${ICON.plus} Nuevo gafete</button></div>`;
       return;
     }
-    if(f.length===0){ list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.search}</div><h3>Sin coincidencias</h3><p>No hay gafetes que coincidan con “${esc(query)}”.</p></div>`; return; }
-    list.innerHTML=`<div class="badge-grid">`+f.map(b=>`
-      <div class="badge-item">
+    if(f.length===0){
+      const m = btab==="pendiente" ? "No hay carnets pendientes de aprobación." : (query?`No hay gafetes que coincidan con “${esc(query)}”.`:"Sin gafetes en esta pestaña.");
+      list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.search}</div><h3>Sin resultados</h3><p>${m}</p></div>`; return;
+    }
+    list.innerHTML=`<div class="badge-grid">`+f.map(b=>{
+      const est=estadoDe(b);
+      const pendiente = est==="pendiente";
+      return `
+      <div class="badge-item ${pendiente?'is-pending':''}">
         <div class="bi-photo">${b.foto?`<img src="${b.foto}" alt="">`:`<span class="bi-noimg">${ICON.user}</span>`}</div>
         <div class="bi-info">
           <b>${esc(b.nombre)}</b>
@@ -3131,15 +3192,27 @@ async function renderBadges(){
           <div class="bi-meta">
             <span class="bi-code">${esc(b.codigo)}</span>
             <span class="bi-comp">${esc(b.compania||"")}</span>
+            ${pendiente?`<span class="bi-status pending">Pendiente</span>`:``}
           </div>
         </div>
         <div class="bi-actions">
+          ${pendiente?`<button class="btn solid xs" title="Aprobar y activar" onclick="badgeApprove('${b.id}')">${ICON.check} Aprobar</button>`:``}
           <button class="icon-btn view" title="Ver / imprimir gafete" onclick="_badgeView('${b.id}')">${ICON.eye}</button>
           <button class="icon-btn edit" title="Editar" onclick="_badgeEdit('${b.id}')">${ICON.edit}</button>
           <button class="icon-btn del" title="Eliminar" onclick="badgeDel('${b.id}')">${ICON.trash}</button>
         </div>
-      </div>`).join("")+`</div>`;
+      </div>`;
+    }).join("")+`</div>`;
   };
+
+  // pestañas de estado
+  document.querySelectorAll("#badgeTabs [data-btab]").forEach(btn=>{
+    btn.onclick=()=>{
+      btab=btn.getAttribute("data-btab");
+      document.querySelectorAll("#badgeTabs [data-btab]").forEach(x=>x.classList.toggle("active", x===btn));
+      paint();
+    };
+  });
 
   $("#badgeSearch").addEventListener("input",e=>{ query=e.target.value.toLowerCase(); paint(); });
 
@@ -3165,6 +3238,28 @@ async function renderBadges(){
 
   // el módulo refresca su lista al volver del editor
   window._reloadBadges=async()=>{ try{ badges=await dbListBadges(); }catch(e){ console.error(e); } paint(); };
+
+  // aprobar (activar) un carnet pendiente de autoregistro
+  window.badgeApprove=id=>{
+    const b=badges.find(x=>x.id===id); if(!b) return;
+    const modal=el("div","modal-bg show");
+    modal.innerHTML=`<div class="modal narrow"><div class="modal-body"><div class="confirm-body">
+      <div class="confirm-ico" style="background:var(--grad-emerald)">${ICON.check}</div>
+      <h3>¿Aprobar carnet?</h3>
+      <p>Se activará el carnet de <b>${esc(b.nombre)}</b> (${esc(b.codigo)}). A partir de ahí quedará vigente y verificable.</p></div></div>
+      <div class="modal-foot"><button class="btn ghost" id="apC">Cancelar</button><button class="btn solid" id="apO">${ICON.check} Aprobar</button></div></div>`;
+    document.body.appendChild(modal);
+    const close=()=>modal.remove();
+    $("#apC").onclick=close; modal.addEventListener("mousedown",e=>{if(e.target===modal)close();});
+    $("#apO").onclick=async()=>{
+      const btn=$("#apO"); btn.disabled=true; btn.innerHTML='<span class="spinner sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.4)"></span> Aprobando…';
+      try{
+        await dbUpdateBadge(id,{estado:"activo", aprobadoPor:state.user.usuario, aprobadoEn:new Date().toISOString()});
+        b.estado="activo";
+        close(); toast("Carnet aprobado","ok"); paint();
+      }catch(e){ console.error(e); btn.disabled=false; btn.innerHTML=`${ICON.check} Aprobar`; toast("Error al aprobar","err"); }
+    };
+  };
 
   try{
     badges=await dbListBadges();
@@ -3234,8 +3329,9 @@ function renderVerifyBadge(){
       return;
     }
     const vig=badgeVigente(b);
+    const pendiente = (b.estado||"activo")==="pendiente";
     // Registrar en el historial de verificaciones (no bloquea la vista)
-    const estado = vig===false ? "vencido" : (vig===true ? "vigente" : "sin_fecha");
+    const estado = pendiente ? "pendiente" : (vig===false ? "vencido" : (vig===true ? "vigente" : "sin_fecha"));
     dbLogVerification({
       codigo: b.codigo,
       nombre: b.nombre,
@@ -3248,13 +3344,15 @@ function renderVerifyBadge(){
       fecha: new Date().toISOString()
     }).catch(e=>console.error("log verificación:",e)).then(()=>{ if(window.__reloadVerifyHist) window.__reloadVerifyHist(); });
     const qr=makeQRDataURL(badgeVerifyURL(b.codigo),200);
-    const banner = vig===false
-      ? `<div class="vb-banner vencido">${ICON.warn} CARNET VENCIDO — venció el ${esc(fmtCarnetDate(b.fechaVence))}</div>`
-      : (vig===true
-          ? `<div class="vb-banner vigente">${ICON.check} CARNET VIGENTE — válido hasta ${esc(fmtCarnetDate(b.fechaVence))}</div>`
-          : `<div class="vb-banner neutro">${ICON.info} Sin fecha de vencimiento registrada</div>`);
+    const banner = pendiente
+      ? `<div class="vb-banner vencido">${ICON.warn} CARNET PENDIENTE — aún no aprobado por Sistemas</div>`
+      : (vig===false
+        ? `<div class="vb-banner vencido">${ICON.warn} CARNET VENCIDO — venció el ${esc(fmtCarnetDate(b.fechaVence))}</div>`
+        : (vig===true
+            ? `<div class="vb-banner vigente">${ICON.check} CARNET VIGENTE — válido hasta ${esc(fmtCarnetDate(b.fechaVence))}</div>`
+            : `<div class="vb-banner neutro">${ICON.info} Sin fecha de vencimiento registrada</div>`));
     box.innerHTML=`
-      <div class="vb-card ${vig===false?'is-vencido':(vig===true?'is-vigente':'')}">
+      <div class="vb-card ${pendiente||vig===false?'is-vencido':(vig===true?'is-vigente':'')}">
         ${banner}
         <div class="vb-body">
           <div class="vb-photo">${b.foto?`<img src="${b.foto}">`:`<div class="vb-photo-empty">${ICON.user}</div>`}</div>
@@ -3586,6 +3684,68 @@ function badgeScanner(){
   input.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); doLookup(); } });
 }
 
+/* ---------- QR de autoregistro ----------
+   Muestra el enlace y el QR que los colaboradores escanean para registrar
+   su propio carnet (?registro=1). Permite copiar el enlace e imprimir el QR. */
+function selfRegisterURL(){
+  return location.origin + location.pathname + "?registro=1";
+}
+function showRegisterQR(){
+  const url=selfRegisterURL();
+  const qr=makeQRDataURL(url, 320);
+  const modal=el("div","modal-bg show");
+  modal.innerHTML=`<div class="modal"><div class="modal-head">
+      <h3>${ICON.badge} QR de autoregistro</h3>
+      <button class="icon-btn" id="rqX">${ICON.close}</button>
+    </div>
+    <div class="modal-body">
+      <p class="hint">Imprimí o compartí este código. Cada colaborador lo escanea con su celular y llena su propio carnet. Los registros quedan <b>pendientes de aprobación</b>.</p>
+      <div class="rq-box">
+        <div class="rq-qr">${qr?`<img src="${qr}" alt="QR de registro">`:'<span>No se pudo generar el QR</span>'}</div>
+        <div class="rq-link">
+          <input id="rqUrl" value="${esc(url)}" readonly>
+          <button class="btn ghost sm" id="rqCopy">${ICON.doc} Copiar enlace</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="rqClose">Cerrar</button>
+      <button class="btn solid" id="rqPrint">${ICON.print} Imprimir QR</button>
+    </div></div>`;
+  document.body.appendChild(modal);
+  const close=()=>modal.remove();
+  $("#rqX").onclick=close; $("#rqClose").onclick=close;
+  modal.addEventListener("mousedown",e=>{if(e.target===modal)close();});
+  $("#rqCopy").onclick=()=>{
+    const inp=$("#rqUrl"); inp.select();
+    try{ navigator.clipboard.writeText(url); toast("Enlace copiado","ok"); }
+    catch(e){ try{ document.execCommand("copy"); toast("Enlace copiado","ok"); }catch(_){ toast("Copiá el enlace manualmente","info"); } }
+  };
+  $("#rqPrint").onclick=()=>{
+    const win=window.open("","_blank","width=460,height=620");
+    if(!win){ toast("Permití las ventanas emergentes para imprimir","warn"); return; }
+    const css=`*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      body{display:flex;align-items:center;justify-content:center;min-height:100vh}
+      .sheet{text-align:center;padding:24px}
+      .sheet img.logo{width:5cm;margin-bottom:16px}
+      .sheet h1{font-size:20pt;margin-bottom:6px;color:#111}
+      .sheet p{font-size:12pt;color:#333;margin-bottom:18px;max-width:8cm}
+      .sheet .qr img{width:7cm;height:7cm}
+      .sheet .u{font-size:9pt;color:#555;margin-top:12px;word-break:break-all;max-width:8cm}`;
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>QR de registro de carnet</title><style>${css}</style></head>
+      <body><div class="sheet">
+        <img class="logo" src="${LOGOS.byc}">
+        <h1>Registrá tu carnet</h1>
+        <p>Escaneá este código con la cámara de tu celular y completá tus datos.</p>
+        <div class="qr"><img src="${qr}"></div>
+        <div class="u">${esc(url)}</div>
+      </div>
+      <script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>
+      </body></html>`);
+    win.document.close();
+  };
+}
+
 /* ---------- Editor de gafete ---------- */
 async function badgeEditor(badge){
   if(!canManageBadges()) return;
@@ -3677,7 +3837,7 @@ async function badgeEditor(badge){
       if(isNew){
         const codigo=await nextBadgeCode(compania);
         const nb={nombre,cedula,puesto,compania,fechaIngreso,fechaVence,foto:fotoData,codigo,
-                  creadoPor:state.user.usuario, creadoEn:new Date().toISOString()};
+                  estado:"activo", creadoPor:state.user.usuario, creadoEn:new Date().toISOString()};
         const saved=await dbCreateBadge(nb);
         close(); toast(`Gafete creado: ${codigo}`,"ok");
         if(window._reloadBadges) await window._reloadBadges();
@@ -3766,6 +3926,100 @@ function badgeVigente(b){
   if(!b.fechaVence) return null; // sin fecha => no se evalúa
   const hoy = todayISO();
   return b.fechaVence >= hoy;
+}
+
+/* ---------- Autoregistro público de carnet (?registro=1) ----------
+   Formulario sin login para que el colaborador cree su propio carnet.
+   Sube su foto, llena sus datos, y el carnet queda PENDIENTE de aprobación.
+   El código interno se asigna automáticamente según la compañía. */
+function renderSelfRegister(){
+  const boot=$("#bootLoader");
+  if(boot){ boot.classList.add("hide"); setTimeout(()=>boot.remove(),400); }
+  const app=$("#app");
+  app.innerHTML=`<div class="sr-screen"><div class="sr-card" id="srCard">
+    <div class="sr-head">
+      <img src="${LOGOS.byc}" class="sr-logo">
+      <h1>Registro de carnet</h1>
+      <p>Completá tus datos y subí tu foto. Tu carnet quedará pendiente de revisión por el Departamento de Sistemas.</p>
+    </div>
+    <div class="sr-photo-wrap">
+      <div class="sr-photo" id="srPhoto"><div class="sr-photo-empty">${ICON.camera}<span>Tocá para subir tu foto</span></div></div>
+      <label class="btn ghost sm sr-photo-btn">
+        ${ICON.camera} Subir foto
+        <input type="file" id="srPhotoInput" accept="image/*" capture="user" style="display:none">
+      </label>
+    </div>
+    <div class="sr-fields">
+      <div class="field"><label>Nombre completo *</label><input id="srNombre" placeholder="Nombre y apellidos"></div>
+      <div class="field"><label>Cédula *</label><input id="srCedula" placeholder="Ej. 304400086" inputmode="numeric"></div>
+      <div class="field"><label>Compañía *</label><select id="srCompania">${BADGE_COMPANIES.map(c=>`<option>${esc(c)}</option>`).join("")}</select></div>
+      <div class="field"><label>Puesto *</label><input id="srPuesto" placeholder="Ej. Operario de empaque"></div>
+      <div class="field"><label>Fecha de ingreso</label><input type="date" id="srIngreso"></div>
+    </div>
+    <button class="btn solid sr-submit" id="srSubmit">${ICON.check} Enviar registro</button>
+    <p class="sr-foot">B&amp;C Exportadores del Valle de Ujarrás</p>
+  </div></div>`;
+
+  // foto (redimensionada a 3:4, igual que en el editor interno)
+  let fotoData="";
+  $("#srPhotoInput").addEventListener("change",e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        const targetH=480, targetW=360;
+        const canvas=document.createElement("canvas");
+        canvas.width=targetW; canvas.height=targetH;
+        const ctx=canvas.getContext("2d");
+        const scale=Math.max(targetW/img.width, targetH/img.height);
+        const w=img.width*scale, h=img.height*scale;
+        ctx.drawImage(img,(targetW-w)/2,(targetH-h)/2,w,h);
+        fotoData=canvas.toDataURL("image/jpeg",0.82);
+        $("#srPhoto").innerHTML=`<img src="${fotoData}">`;
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  $("#srSubmit").onclick=async()=>{
+    const nombre=$("#srNombre").value.trim();
+    const cedula=$("#srCedula").value.trim();
+    const compania=$("#srCompania").value;
+    const puesto=$("#srPuesto").value.trim();
+    const fechaIngreso=$("#srIngreso").value;
+    if(!nombre||!cedula||!puesto){ toast("Completá nombre, cédula y puesto","warn"); return; }
+    if(!fotoData){ toast("Subí tu foto para continuar","warn"); return; }
+
+    const btn=$("#srSubmit"); btn.disabled=true;
+    btn.innerHTML='<span class="spinner sm" style="border-top-color:#fff;border-color:rgba(255,255,255,.4)"></span> Enviando…';
+    try{
+      const codigo=await nextBadgeCode(compania);
+      const nb={nombre,cedula,puesto,compania,fechaIngreso,fechaVence:"",foto:fotoData,codigo,
+                estado:"pendiente", origen:"autoregistro",
+                creadoPor:"autoregistro", creadoEn:new Date().toISOString()};
+      await dbCreateBadge(nb);
+      // pantalla de éxito
+      $("#srCard").innerHTML=`
+        <div class="sr-done">
+          <div class="sr-done-ico">${ICON.check}</div>
+          <h1>¡Registro enviado!</h1>
+          <p>Gracias, <b>${esc(nombre)}</b>. Tu carnet quedó registrado y está <b>pendiente de aprobación</b> por el Departamento de Sistemas.</p>
+          <div class="sr-done-code">${esc(codigo)}</div>
+          <p class="sr-done-hint">Podés cerrar esta ventana.</p>
+        </div>`;
+    }catch(e){
+      console.error(e);
+      btn.disabled=false; btn.innerHTML=`${ICON.check} Enviar registro`;
+      const msg=(e&&e.message)?e.message:String(e);
+      if(/permission|insufficient|PERMISSION_DENIED/i.test(msg)){
+        toast("No se pudo enviar (permisos de Firestore).","err");
+      } else {
+        toast("No se pudo enviar: "+msg,"err");
+      }
+    }
+  };
 }
 
 /* Vista PÚBLICA de verificación: se muestra al abrir ?gafete=CODIGO (al escanear
@@ -3938,6 +4192,13 @@ async function boot(){
   if(gaf){
     try{ await ensureSeedAdmin(); }catch(e){}
     await renderPublicBadge(gaf);
+    return;
+  }
+
+  // Autoregistro público de carnet: ?registro=1 (QR para colaboradores)
+  if(params.get("registro")!==null){
+    try{ await ensureSeedAdmin(); }catch(e){}
+    renderSelfRegister();
     return;
   }
 
