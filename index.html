@@ -357,6 +357,10 @@ a{color:var(--emerald);text-decoration:none}
 
 /* ============ USERS / ADMIN ============ */
 .user-card{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;transition:.18s;animation:slideRight .4s both}
+.user-card.is-dup{border-color:rgba(217,138,31,.5);background:rgba(217,138,31,.05)}
+.dup-tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.3px;background:rgba(217,138,31,.18);color:var(--warn);padding:2px 7px;border-radius:20px;margin-left:6px;vertical-align:middle}
+.dup-warn{display:flex;align-items:center;gap:9px;background:rgba(217,138,31,.1);border:1px solid rgba(217,138,31,.3);color:#a56a12;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13.5px}
+.dup-warn svg{width:20px;height:20px;flex-shrink:0}
 .user-card:hover{border-color:var(--line-2);box-shadow:var(--shadow-sm)}
 .user-card .uc-av{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:16px;flex-shrink:0}
 .user-card .uc-info{flex:1;min-width:0}
@@ -1488,7 +1492,17 @@ async function dbListUsers(){
   return snap.docs.map(d=>({id:d.id, ...d.data()}));
 }
 async function dbCreateUser(u){
-  if(state.demo){ u.id="u_"+Date.now(); state.demoStore.users.push(u); demoSave(); return u; }
+  // normalizar el nombre de usuario a minúsculas siempre
+  u = {...u, usuario: String(u.usuario||"").trim().toLowerCase()};
+  if(state.demo){
+    if(state.demoStore.users.some(x=>String(x.usuario||"").toLowerCase()===u.usuario)){
+      throw new Error("Ese nombre de usuario ya existe");
+    }
+    u.id="u_"+Date.now(); state.demoStore.users.push(u); demoSave(); return u;
+  }
+  // comprobación final anti-duplicados justo antes de crear
+  const existing = await dbGetUserByName(u.usuario);
+  if(existing){ throw new Error("Ese nombre de usuario ya existe"); }
   const ref = await db.collection(COL_USERS).add(u);
   trackOps(0, 1);
   return {id:ref.id, ...u};
@@ -1814,12 +1828,24 @@ function clearSession(){ try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){
 /* Bootstrap: si no hay usuarios (modo demo o primer arranque), crea admin
    por defecto admin / admin123  */
 async function ensureSeedAdmin(){
-  const users = await dbListUsers();
-  if(users.length===0){
-    await dbCreateUser({
-      usuario:"admin", nombre:"Administrador", rol:"admin",
-      pwd: await hashPwd("admin123"), creado: todayISO()
-    });
+  if(state.demo){
+    const users = await dbListUsers();
+    if(users.length===0){
+      await dbCreateUser({ usuario:"admin", nombre:"Administrador", rol:"admin", pwd: await hashPwd("admin123"), creado: todayISO() });
+      return true;
+    }
+    return false;
+  }
+  // Usar un ID de documento fijo para el admin semilla evita que se creen
+  // varios "admin" por condiciones de carrera (dos cargas simultáneas con la
+  // colección vacía). doc("admin").set(..., {merge:true}) es idempotente:
+  // siempre es el mismo documento, sin importar cuántas veces se ejecute.
+  const ref = db.collection(COL_USERS).doc("admin");
+  const snap = await ref.get();
+  trackOps(1,0);
+  if(!snap.exists){
+    await ref.set({ usuario:"admin", nombre:"Administrador", rol:"admin", pwd: await hashPwd("admin123"), creado: todayISO() });
+    trackOps(0,1);
     return true;
   }
   return false;
@@ -3242,20 +3268,33 @@ async function renderUsers(){
     if(state.view!=="users") return;
     const list=$("#userList");
     if(!list) return;
+    // detectar nombres de usuario repetidos
+    const counts={};
+    users.forEach(u=>{ const k=String(u.usuario||"").toLowerCase(); counts[k]=(counts[k]||0)+1; });
+    const dupTotal = Object.values(counts).filter(n=>n>1).reduce((a,n)=>a+(n-1),0);
+
     const f=users.filter(u=>!query || (u.nombre+" "+u.usuario).toLowerCase().includes(query));
     if(f.length===0){ list.innerHTML=`<div class="empty-state"><div class="es-ico">${ICON.users}</div><h3>Sin usuarios</h3></div>`; return; }
-    list.innerHTML=`<div class="fade-list">`+f.map(u=>`
-      <div class="user-card">
+
+    const aviso = dupTotal>0
+      ? `<div class="dup-warn">${ICON.warn} Hay ${dupTotal} usuario(s) duplicado(s). Se marcan con la etiqueta <b>Duplicado</b>; eliminá los sobrantes con el botón de papelera (dejá solo uno de cada usuario).</div>`
+      : "";
+
+    list.innerHTML=aviso+`<div class="fade-list">`+f.map(u=>{
+      const esDup = counts[String(u.usuario||"").toLowerCase()]>1;
+      return `
+      <div class="user-card ${esDup?'is-dup':''}">
         <div class="uc-av" style="background:${u.rol==='admin'?ACCENTS.gold:(u.rol==='encargado'?ACCENTS.emerald:ACCENTS.ice)}">${initials(u.nombre)}</div>
         <div class="uc-info">
-          <b>${esc(u.nombre)}</b>
+          <b>${esc(u.nombre)} ${esDup?'<span class="dup-tag">Duplicado</span>':''}</b>
           <small>@${esc(u.usuario)} · <span class="role-tag ${u.rol}">${roleLabel(u.rol)}</span></small>
         </div>
         <div class="uc-actions">
           <button class="icon-btn edit" title="Editar" onclick="window._userEdit('${u.id}')">${ICON.edit}</button>
-          ${u.usuario!==state.user.usuario?`<button class="icon-btn del" title="Eliminar" onclick="window._userDel('${u.id}')">${ICON.trash}</button>`:''}
+          ${u.id!==state.user.id?`<button class="icon-btn del" title="Eliminar" onclick="window._userDel('${u.id}')">${ICON.trash}</button>`:''}
         </div>
-      </div>`).join("")+`</div>`;
+      </div>`;
+    }).join("")+`</div>`;
   };
 
   $("#userSearch").addEventListener("input",e=>{ query=e.target.value.toLowerCase(); paint(); });
@@ -4534,7 +4573,13 @@ function userEditor(user, onDone){
       }
       close();
       if(state.demo) renderUsers(); else if(typeof onDone==="function") onDone();
-    }catch(e){ console.error(e); btn.disabled=false; lbl.textContent=isNew?'Crear usuario':'Guardar'; toast("Error al guardar usuario","err"); }
+    }catch(e){
+      console.error(e);
+      btn.disabled=false; lbl.textContent=isNew?'Crear usuario':'Guardar';
+      const msg=(e&&e.message)?e.message:String(e);
+      if(/ya existe/i.test(msg)) toast("Ese nombre de usuario ya existe","warn");
+      else toast("Error al guardar usuario","err");
+    }
   };
   $("#ueName").focus();
 }
