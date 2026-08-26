@@ -703,6 +703,7 @@ const COL_RECORDS  = "secudocs_registros";
 const COL_COUNTERS = "secudocs_consecutivos";
 const COL_BADGES   = "secudocs_gafetes";
 const COL_VERIFLOG = "secudocs_verificaciones";
+const COL_META     = "secudocs_meta";   // documentos de metadatos (contador de operaciones)
 
 let db = null, FB_OK = false;
 try {
@@ -743,28 +744,82 @@ function stopRealtime(which){
    escrituras por día. El total real del proyecto es la suma de todos
    los dispositivos; este contador es una referencia local.
    ====================================================================== */
-const OPS_KEY = "secudocs_ops";
 const OPS_LIMIT_READS = 50000;   // límite diario de lecturas (plan Spark)
 const OPS_LIMIT_WRITES = 20000;  // límite diario de escrituras (plan Spark)
-const opsState = { day:"", reads:0, writes:0 };
+
+/* Contador COMPARTIDO de operaciones de Firestore.
+   Se guarda en un documento único (secudocs_meta/ops) para que todos los
+   usuarios vean el MISMO total real del proyecto, sin importar el dispositivo.
+   Para no gastar cuota, las operaciones se acumulan localmente y se sincronizan
+   al documento compartido cada cierto intervalo (no en cada operación). */
+const opsState = { day:"", reads:0, writes:0 };      // total compartido mostrado
+const opsPending = { reads:0, writes:0 };            // acumulado local por enviar
+let opsSyncTimer = null, opsPullTimer = null;
 
 function opsToday(){ return new Date().toISOString().slice(0,10); }
+function opsDocRef(){ return db.collection(COL_META).doc("ops"); }
+
 function opsLoad(){
-  try{
-    const d = JSON.parse(localStorage.getItem(OPS_KEY));
-    if(d && d.day===opsToday()){ opsState.day=d.day; opsState.reads=d.reads||0; opsState.writes=d.writes||0; return; }
-  }catch(e){}
-  opsState.day=opsToday(); opsState.reads=0; opsState.writes=0;
-  opsSave();
+  // Al iniciar, traer el total compartido y arrancar la sincronización periódica
+  if(state.demo){ opsState.day=opsToday(); opsState.reads=0; opsState.writes=0; return; }
+  opsPull();
+  if(!opsPullTimer) opsPullTimer = setInterval(opsPull, 30000); // refresca cada 30 s
 }
-function opsSave(){ try{ localStorage.setItem(OPS_KEY, JSON.stringify(opsState)); }catch(e){} }
+
+async function opsPull(){
+  if(state.demo) return;
+  try{
+    const snap = await opsDocRef().get();
+    const today = opsToday();
+    if(snap.exists){
+      const d = snap.data()||{};
+      if(d.day===today){ opsState.day=today; opsState.reads=d.reads||0; opsState.writes=d.writes||0; }
+      else { opsState.day=today; opsState.reads=0; opsState.writes=0; } // día nuevo: se reinicia al próximo sync
+    } else {
+      opsState.day=today; opsState.reads=0; opsState.writes=0;
+    }
+    renderOpsBadge();
+  }catch(e){ /* silencioso: el contador no debe romper la app */ }
+}
+
+/* Envía el acumulado local al documento compartido con incrementos atómicos.
+   Si cambió el día, reinicia el documento. Cuenta como 1 escritura. */
+async function opsFlush(){
+  if(state.demo) return;
+  if(opsPending.reads===0 && opsPending.writes===0) return;
+  const today = opsToday();
+  const addR = opsPending.reads, addW = opsPending.writes;
+  opsPending.reads = 0; opsPending.writes = 0;
+  try{
+    const inc = firebase.firestore.FieldValue.increment;
+    // si el documento es de un día anterior, lo reiniciamos a los valores nuevos
+    const snap = await opsDocRef().get();
+    const d = snap.exists ? (snap.data()||{}) : null;
+    if(d && d.day===today){
+      await opsDocRef().update({ reads: inc(addR), writes: inc(addW+1) }); // +1 por esta escritura
+      opsState.reads += addR; opsState.writes += addW+1;
+    } else {
+      await opsDocRef().set({ day:today, reads:addR, writes:addW+1 });
+      opsState.day=today; opsState.reads=addR; opsState.writes=addW+1;
+    }
+    renderOpsBadge();
+  }catch(e){
+    // si falla, devolver lo pendiente para reintentar luego
+    opsPending.reads += addR; opsPending.writes += addW;
+  }
+}
+
 function trackOps(reads=0, writes=0){
   if(state.demo) return;
-  if(opsState.day!==opsToday()){ opsState.day=opsToday(); opsState.reads=0; opsState.writes=0; }
-  opsState.reads += reads;
-  opsState.writes += writes;
-  opsSave();
+  opsPending.reads += reads;
+  opsPending.writes += writes;
+  // mostrar de inmediato una estimación local sumada al último total conocido
+  opsState.reads += reads; opsState.writes += writes;
   renderOpsBadge();
+  // programar el envío agrupado (debounce de 15 s)
+  if(!opsSyncTimer){
+    opsSyncTimer = setTimeout(()=>{ opsSyncTimer=null; opsFlush(); }, 15000);
+  }
 }
 function renderOpsBadge(){
   const el = document.getElementById("opsCounter");
@@ -786,7 +841,7 @@ function renderOpsBadge(){
       </div>
     </div>
     <div class="ops-pct">${level}%</div>`;
-  el.title = `Lecturas: ${r.toLocaleString("es-CR")} / ${OPS_LIMIT_READS.toLocaleString("es-CR")} (${pr}%)\nEscrituras: ${w.toLocaleString("es-CR")} / ${OPS_LIMIT_WRITES.toLocaleString("es-CR")} (${pw}%)\nContador local de este dispositivo. Se reinicia cada día.`;
+  el.title = `Lecturas: ${r.toLocaleString("es-CR")} / ${OPS_LIMIT_READS.toLocaleString("es-CR")} (${pr}%)\nEscrituras: ${w.toLocaleString("es-CR")} / ${OPS_LIMIT_WRITES.toLocaleString("es-CR")} (${pw}%)\nTotal compartido del proyecto (todos los usuarios). Se reinicia cada día.`;
 }
 
 /* Animación breve del indicador "En vivo" cuando llega un cambio remoto */
@@ -4628,6 +4683,8 @@ async function boot(){
 }
 
 document.addEventListener("DOMContentLoaded", boot);
+// Enviar operaciones pendientes antes de cerrar/recargar (best-effort)
+window.addEventListener("beforeunload", ()=>{ try{ if(!state.demo) opsFlush(); }catch(e){} });
 </script>
 
 </body>
