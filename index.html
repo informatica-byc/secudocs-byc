@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecuDocs se movió</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%231F9D63%27/%3E%3Ctext x=%2716%27 y=%2722%27 font-family=%27Arial%27 font-size=%2718%27 font-weight=%27bold%27 fill=%27white%27 text-anchor=%27middle%27%3ES%3C/text%3E%3C/svg%3E">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;
+       background:linear-gradient(160deg,#eef4ef,#e3efe6);padding:24px}
+  .card{max-width:460px;width:100%;background:#fff;border-radius:22px;
+        box-shadow:0 12px 40px rgba(20,50,30,.16);padding:38px 30px;text-align:center}
+  .logo{width:64px;height:64px;border-radius:16px;background:#1F9D63;color:#fff;
+        display:grid;place-items:center;font-size:34px;font-weight:800;margin:0 auto 20px}
+  h1{font-size:24px;color:#12251a;margin-bottom:12px}
+  p{font-size:15px;color:#5a6b71;line-height:1.6;margin-bottom:10px}
+  .url{display:inline-block;margin:18px 0;font-size:15px;font-weight:700;
+       background:#e4f3ea;color:#177a4d;padding:10px 20px;border-radius:12px;
+       word-break:break-all}
+  .btn{display:inline-block;margin-top:8px;background:#1F9D63;color:#fff;
+       text-decoration:none;font-weight:700;font-size:16px;padding:13px 28px;
+       border-radius:12px;transition:.15s}
+  .btn:hover{background:#177a4d}
+  .small{font-size:12px;color:#9aa8a0;margin-top:22px}
+  .count{font-weight:700;color:#177a4d}
+</style>
+<script>
+  // Redirección automática después de unos segundos
+  var DESTINO = "https://secudocs.bycexportadores.local";
+  var segundos = 6;
+  function tick(){
+    var el = document.getElementById("cont");
+    if(el) el.textContent = segundos;
+    if(segundos <= 0){ window.location.href = DESTINO; return; }
+    segundos--;
+    setTimeout(tick, 1000);
+  }
+  window.onload = tick;
+</script>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">S</div>
+    <h1>SecuDocs se trasladó</h1>
+    <p>El sistema ya no está disponible en esta dirección. Ahora funciona en el servidor interno de la empresa:</p>
+    <div class="url">secudocs.bycexportadores.local</div>
+    <p>Serás redirigido automáticamente en <span class="count" id="cont">6</span> segundos.</p>
+    <a class="btn" href="https://secudocs.bycexportadores.local">Ir al sistema ahora</a>
+    <p class="small">Si el enlace no abre, verificá que estés conectado a la red interna de B&amp;C Exportadores.<br>Departamento de Sistemas</p>
+  </div>
+</body>
+</html>
